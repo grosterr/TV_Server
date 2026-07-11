@@ -34,12 +34,17 @@ services:
       - TZ=Europe/Kyiv
     restart: unless-stopped
 
+  # Pinned to a specific release via ghcr (bundles a compatible binary).
+  # Do NOT use yourok/torrserver:latest — its start.sh downloads
+  # releases/latest at boot, and MatriX.142 has an open crash bug under load
+  # (YouROK/TorrServer#766: panics in acceptLimitClearer/deleteAllRequests).
+  # Bump TORRSERVER_VERSION in .env once #766 is fixed upstream.
   torrserver:
-    image: yourok/torrserver:latest
+    image: ghcr.io/yourok/torrserver:${TORRSERVER_VERSION:-MatriX.141.10}
     container_name: torrserver
     network_mode: "service:warp"   # all traffic goes through WARP
     volumes:
-      - ./torrserver_data:/opt/ts/db
+      - ./torrserver_data:/opt/ts  # config/log/torrents — survives recreation
     environment:
       - TZ=Europe/Kyiv
     depends_on:
