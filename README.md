@@ -71,6 +71,57 @@
 
 ---
 
+## 🔍 Моніторинг та логи (PowerShell)
+
+Усі команди працюють з будь-якої папки — Docker знаходить контейнери за іменем (`jackett`, `torrserver`).
+
+### Логи Jackett (пошук / парсер)
+```powershell
+docker logs jackett --tail 50          # останні 50 рядків
+docker logs jackett -f                 # наживо, в реальному часі (Ctrl+C — вийти)
+docker logs jackett --since 10m        # тільки за останні 10 хвилин
+docker logs jackett -f --timestamps    # наживо + час кожного рядка
+```
+
+### Логи TorrServer (відтворення / завантаження)
+```powershell
+docker logs torrserver --tail 50
+docker logs torrserver -f
+```
+
+### Фільтрувати логи (аналог grep)
+```powershell
+docker logs jackett --tail 200 | Select-String "Error"            # тільки помилки
+docker logs jackett --tail 200 | Select-String "search"           # тільки пошук
+docker logs jackett --tail 200 | Select-String "Error","Found"    # кілька слів
+```
+
+### Швидкість і сідери торента без веб-інтерфейсу
+```powershell
+# список активних торентів + їхні хеші
+Invoke-RestMethod -Uri "http://127.0.0.1:8090/torrents" -Method Post `
+  -ContentType 'application/json' -Body '{"action":"list"}' | Select-Object title, hash
+
+# швидкість/сідери конкретного торента (підстав свій hash зі списку вище)
+$h = "ПІДСТАВ_СВІЙ_HASH"
+$t = Invoke-RestMethod -Uri "http://127.0.0.1:8090/torrents" -Method Post `
+  -ContentType 'application/json' -Body (@{action='get';hash=$h}|ConvertTo-Json)
+"{0} MB/s ↓ | {1} сідерів | {2} піров" -f `
+  [math]::Round($t.download_speed/1MB,2), $t.connected_seeders, $t.active_peers
+```
+
+### Шпаргалка
+| Хочу | Команда |
+|---|---|
+| Свіжі логи | `docker logs jackett --tail 50` |
+| Дивитись наживо | `docker logs jackett -f` |
+| Що працює зараз | `docker ps` |
+| Перезапустити | `docker restart jackett` |
+
+> 💡 Найзручніше для діагностики ТВ: тримай відкритим `docker logs jackett -f` і зроби пошук на телевізорі — одразу видно, чи прилітає запит і що Jackett відповідає.
+
+---
+
 ## 💡 Часті питання (FAQ) та вирішення проблем
 
 ### 1. Немає звуку під час перегляду (BDRip / Blu-Ray)
