@@ -6,7 +6,9 @@ services:
     image: yourok/torrserver:latest
     container_name: torrserver
     ports:
-      - "8090:8090"
+      - "8090:8090"           # web UI / API
+      - "42116:42116/tcp"     # BitTorrent peers (incoming) — forward on router too
+      - "42116:42116/udp"     # uTP / DHT (UDP)
     volumes:
       - ./torrserver_data:/opt/ts/db
     environment:

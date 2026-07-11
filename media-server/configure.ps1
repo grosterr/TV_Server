@@ -93,7 +93,7 @@ function Set-JackettIndexer {
 }
 
 function Set-TorrServerTuning {
-    param([string]$TorrServerUrl, [long]$CacheSize, [int]$ConnLimit)
+    param([string]$TorrServerUrl, [long]$CacheSize, [int]$ConnLimit, [int]$PeerPort)
     try {
         $current = Invoke-RestMethod -Uri "$TorrServerUrl/settings" -Method Post `
             -ContentType 'application/json' -Body (@{ action = 'get' } | ConvertTo-Json)
@@ -103,11 +103,12 @@ function Set-TorrServerTuning {
     }
     $current.CacheSize        = $CacheSize
     $current.ConnectionsLimit = $ConnLimit
+    $current.PeersListenPort  = $PeerPort
     try {
         Invoke-RestMethod -Uri "$TorrServerUrl/settings" -Method Post -ContentType 'application/json' `
             -Body (@{ action = 'set'; sets = $current } | ConvertTo-Json -Depth 5) | Out-Null
         $gib = [math]::Round($CacheSize / 1GB, 2)
-        Write-Host "  + TorrServer: cache ${gib} GiB, $ConnLimit connections" -ForegroundColor Green
+        Write-Host "  + TorrServer: cache ${gib} GiB, $ConnLimit connections, peer port $PeerPort" -ForegroundColor Green
     } catch {
         Write-Host "  ! TorrServer tuning failed — $($_.Exception.Message)" -ForegroundColor Red
     }
@@ -133,8 +134,9 @@ if (-not (Wait-ForService -Url $JackettUrl -Name 'Jackett' -TimeoutSec $TimeoutS
 Write-Host "Tuning TorrServer:" -ForegroundColor Cyan
 $cache = if ($env['TORRSERVER_CACHE_SIZE']) { [long]$env['TORRSERVER_CACHE_SIZE'] } else { 2147483648 }
 $conn  = if ($env['TORRSERVER_CONN_LIMIT'])  { [int]$env['TORRSERVER_CONN_LIMIT'] }   else { 1000 }
+$port  = if ($env['TORRSERVER_PEER_PORT'])   { [int]$env['TORRSERVER_PEER_PORT'] }    else { 42116 }
 if (Wait-ForService -Url $TorrServerUrl -Name 'TorrServer' -TimeoutSec 10) {
-    Set-TorrServerTuning -TorrServerUrl $TorrServerUrl -CacheSize $cache -ConnLimit $conn
+    Set-TorrServerTuning -TorrServerUrl $TorrServerUrl -CacheSize $cache -ConnLimit $conn -PeerPort $port
 } else {
     Write-Host "  ! TorrServer not reachable at $TorrServerUrl — skipped" -ForegroundColor Yellow
 }
