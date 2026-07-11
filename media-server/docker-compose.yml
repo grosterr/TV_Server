@@ -1,18 +1,49 @@
-# TorrServer performance settings (RAM cache, connection limit) are applied
-# at runtime by configure.ps1 via the TorrServer API — see README.
+# TorrServer performance settings (RAM cache, connection limit, peer port) are
+# applied at runtime by configure.ps1 via the TorrServer API — see README.
+#
+# TorrServer routes ALL its traffic through the "warp" service (Cloudflare WARP
+# via gluetun), so peers see a Cloudflare IP, not yours. To disable the tunnel:
+#   1. remove network_mode from torrserver and give it back its own `ports:`
+#   2. remove the `warp` service.
 
 services:
+  # Cloudflare WARP tunnel (WireGuard) — network gateway for TorrServer.
+  warp:
+    image: qmcgaw/gluetun:latest
+    container_name: warp
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - "8090:8090"           # TorrServer web UI / API (through the tunnel container)
+      - "42116:42116/tcp"     # BitTorrent peers (incoming)
+      - "42116:42116/udp"     # uTP / DHT (UDP)
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${WARP_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WARP_ADDRESS_V4}
+      - WIREGUARD_PUBLIC_KEY=bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=
+      - VPN_ENDPOINT_IP=162.159.192.1
+      - VPN_ENDPOINT_PORT=2408
+      - WIREGUARD_MTU=1280
+      # Let the LAN (TV) reach TorrServer and let TorrServer answer LAN peers.
+      - FIREWALL_INPUT_PORTS=8090,42116
+      - FIREWALL_OUTBOUND_SUBNETS=192.168.0.0/16
+      - TZ=Europe/Kyiv
+    restart: unless-stopped
+
   torrserver:
     image: yourok/torrserver:latest
     container_name: torrserver
-    ports:
-      - "8090:8090"           # web UI / API
-      - "42116:42116/tcp"     # BitTorrent peers (incoming) — forward on router too
-      - "42116:42116/udp"     # uTP / DHT (UDP)
+    network_mode: "service:warp"   # all traffic goes through WARP
     volumes:
       - ./torrserver_data:/opt/ts/db
     environment:
       - TZ=Europe/Kyiv
+    depends_on:
+      - warp
     restart: unless-stopped
 
   jackett:

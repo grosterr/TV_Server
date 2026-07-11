@@ -103,6 +103,34 @@
 
 > Перевірити, що проброс працює: у веб-інтерфейсі TorrServer під час завантаження має рости кількість *активних піров*, а не тільки *pending*.
 
+### Приховати IP через Cloudflare WARP (без платного VPN)
+
+Якщо ви за «сірим» IP (CGNAT) або просто хочете, щоб пири бачили не вашу IP — увесь трафік TorrServer можна завернути через безкоштовний **Cloudflare WARP** (сервіс `warp` на базі [gluetun](https://github.com/qdm12/gluetun) у `docker-compose.yml`). Перевірено: P2P крізь тунель працює, швидкість на добре роздаваних торентах не страждає.
+
+**Що дає / чого не дає:**
+- ✅ Пири бачать IP Cloudflare, а не вашу.
+- ✅ Може обійти тротлінг BitTorrent з боку провайдера.
+- ❌ **Не** прискорює само по собі й **не** дає вхідного порту (ви за NAT Cloudflare) — стелю швидкості визначає кількість сідерів.
+- ⚠️ Cloudflare може ріжати P2P — якщо швидкість впаде до нуля, тунель варто вимкнути.
+
+**Налаштування (одноразово):**
+1. Згенеруйте WARP-профіль (створює безкоштовний акаунт):
+   ```powershell
+   docker run --rm -v "${PWD}\warp:/data" -w //data alpine sh -c `
+     "apk add --no-cache curl >/dev/null && curl -sL -o wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate && cat wgcf-profile.conf"
+   ```
+2. З виводу візьміть `PrivateKey` та перший `Address` і впишіть у `.env`:
+   ```
+   WARP_PRIVATE_KEY=<PrivateKey>
+   WARP_ADDRESS_V4=172.16.0.2/32
+   ```
+3. Підніміть стек: `docker compose up -d`
+4. Перевірте, що IP змінився на Cloudflare: `docker exec warp wget -qO- https://api.ipify.org`
+
+**Вимкнути тунель:** у `docker-compose.yml` приберіть `network_mode: "service:warp"` у `torrserver`, поверніть йому власний блок `ports:` (8090 + 42116) і видаліть сервіс `warp`.
+
+> Папка `warp/` (містить ключі акаунта) і `.env` — у `.gitignore`, у git не потрапляють.
+
 ---
 
 ## 🔍 Моніторинг та логи (PowerShell)

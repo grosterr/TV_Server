@@ -1,3 +1,4 @@
 .env
 jackett_config/
 torrserver_data/
+media-server/warp/
