@@ -1,4 +1,5 @@
-version: '3.8'
+# TorrServer performance settings (RAM cache, connection limit) are applied
+# at runtime by configure.ps1 via the TorrServer API — see README.
 
 services:
   torrserver:
