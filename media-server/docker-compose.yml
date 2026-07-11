@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  torrserver:
+    image: yourok/torrserver:latest
+    container_name: torrserver
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./torrserver_data:/opt/ts/db
+    environment:
+      - TZ=Europe/Kyiv
+    restart: unless-stopped
+
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    ports:
+      - "9117:9117"
+    volumes:
+      - ./jackett_config:/config
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Kyiv
+    restart: unless-stopped
