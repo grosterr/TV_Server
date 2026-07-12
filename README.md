@@ -89,6 +89,34 @@ Downloader на Samsung не працює (Tizen — не Android), тому:
 
 ---
 
+## 🔗 Офіційні ресурси Lampa (від розробників)
+
+> Джерело: закріплений [FAQ спільноти Lampa](https://t.me/lampa_group/195951). Lampa — це **«скелет»**, який вимагає ручного налаштування; ці посилання ведуть на офіційні гайди.
+
+**Налаштування з нуля:**
+- [Інструкція (Telegraph)](https://telegra.ph/Nastraivaem-Lampu-s-nulya-06-18) · [GitHub-wiki](https://github.com/yumata/lampa/wiki)
+- [Що робити, якщо головна порожня / нема постерів](https://t.me/lampa_group/220151)
+
+**Встановлення за платформами:**
+- 📱 Android / Android TV: [офіційні релізи APK](https://github.com/lampa-app/LAMPA/releases) · [через Downloader (код 4384169)](https://telegra.ph/Ustanovka-prilozhenij-Lampa-Torrserve-Matrix-Vimu-na-Android-TV-s-pomoshchyu-Downloader-11-18)
+- 📺 LG / Samsung / Hisense (Vidaa): [гайд](https://telegra.ph/USTANOVKA-i-zapusk-na-Lg-Samsung-Hisense-Vidaa-MCX-01-02)
+- 💻 ПК Windows / Mac / Linux: [Lampa Desktop](https://github.com/Kolovatoff/lampa-desktop/releases) · [Electron для Linux](https://github.com/Boria138/Lampa)
+- 🍏 iPhone / iPad / AppleTV: [через спільноту](https://t.me/lampa_group)
+
+**TorrServer і парсер:**
+- 🗄 [Офіційний гайд встановлення TorrServer](https://telegra.ph/Ustanovka-Servera-na-vneshnee-ustrojstvo-01-24) · [група TorrServer](https://t.me/TorrServe)
+- 🔈 [Список публічних парсерів](https://t.me/lampa_group/247800) · власний парсер **JacRed** ([jacred-fdb](https://github.com/jacred-fdb/jacred)) — альтернатива Jackett, яку використовує Lampac
+- 🧩 [Плагіни Lampa](https://t.me/lampa_plugin)
+
+**Інше:**
+- 🕺 [Cub.red](https://t.me/lampa_group/220151) — сервер для синхронізації закладок між пристроями
+- ✈️ [Candle](https://t.me/lampa_group/323324) — передача сторонніх відеопосилань у Lampa з телефона/ПК
+- 📝 [Повідомити про баг / пропозицію](https://github.com/yumata/lampa/issues)
+
+> 💡 **Про JacRed vs Jackett:** цей проєкт використовує **Jackett + FlareSolverr** (перевірено, працює з Cloudflare-трекерами). JacRed — легша альтернатива «парсера» з готовим набором трекерів; якщо колись захочете спробувати — можна підняти окремим контейнером і вказати в Lampa замість Jackett.
+
+---
+
 ## ⚡ Оптимізація швидкості на P2P-рівні
 
 Якщо швидкість низька навіть на торентах із багатьма сідерами — найчастіша причина в тому, що ваш TorrServer **недоступний для вхідних з'єднань** (за NAT). Тоді ви можете лише самі підключатися до відкритих піров, а до вас — ніхто. Це ріже швидкість у рази.

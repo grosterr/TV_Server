@@ -143,7 +143,7 @@ New-NetFirewallRule -DisplayName "MediaServer Jackett"    -Direction Inbound -Lo
 ## Крок 8. Встановити Lampa на телевізор
 
 ### 🤖 Android TV / приставка (рекомендований спосіб — через Downloader)
-Найзручніше — застосунок **Downloader**, який за одним кодом ставить одразу Lampa та плеєр Vimu.
+Найзручніше — застосунок **Downloader**, який за одним кодом ставить одразу Lampa та плеєр Vimu. ([Офіційний гайд розробників Lampa](https://telegra.ph/Ustanovka-prilozhenij-Lampa-Torrserve-Matrix-Vimu-na-Android-TV-s-pomoshchyu-Downloader-11-18))
 
 1. **Встановіть Downloader.** У **Google Play** на телевізорі знайдіть **Downloader by AFTVnews** (помаранчевий значок зі стрілкою) → **Встановити**.
 2. **Відкрийте потрібну сторінку.** Запустіть Downloader → у полі коду введіть:
@@ -169,7 +169,7 @@ Downloader на Samsung **не працює** (Tizen — не Android). Тому
 ### 📺 LG (WebOS)
 Через браузер [lampa.mx](https://lampa.mx) або доступні лаунчери Lampa (див. спільноту WebOS).
 
-> 📚 Офіційні гайди та підтримка Lampa — у [Telegram-спільноті розробників](https://t.me/lampa_group) та на [GitHub](https://github.com/yumata/lampa).
+> 📚 **Офіційні гайди Lampa (від розробників):** [налаштування з нуля](https://telegra.ph/Nastraivaem-Lampu-s-nulya-06-18) · [GitHub-wiki](https://github.com/yumata/lampa/wiki) · [встановлення на LG / Samsung / Hisense (Vidaa)](https://telegra.ph/USTANOVKA-i-zapusk-na-Lg-Samsung-Hisense-Vidaa-MCX-01-02) · [спільнота](https://t.me/lampa_group). Повний список ресурсів — у [технічному README](README.md).
 
 ## Крок 9. Під'єднати Lampa до сервера
 
