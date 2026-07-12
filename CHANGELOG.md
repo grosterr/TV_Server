@@ -1,9 +1,10 @@
 # Changelog
 
-## v0.5.1-beta
+## v1.0
 
-Rebrand and packaging polish over v0.5.0-beta — same stack and ports; indexer
-setup now happens in the Jackett web UI instead of a CLI prompt.
+First stable **Torlamp** release. Everything from the v0.5.x betas — the Torlamp
+rebrand, root-level installers, and the switch to Jackett's web UI for indexers —
+consolidated and hardened. Same three-service stack and ports; still no backend.
 
 ### Changes
 - **Rebranded to Torlamp** (Torrent + Lampa) across all docs and installers,
