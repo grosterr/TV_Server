@@ -58,7 +58,7 @@ You control everything through the **Lampa** app — a nice catalog with posters
 > - **Windows:** in the `media-server` folder, double-click **`install.bat`**.
 > - **Linux / Mac:** `cd media-server && bash install.sh`
 >
-> In the menu, tick the trackers you want (and optionally IP hiding). The installer brings up the server, configures Jackett, **reads the API key for you** and prints it at the end — copy it for Step 5. Then jump straight to **Step 5**. Want full manual control — do Steps 3–4 below.
+> The installer asks for a **language** (English / Українська / Русский), optionally enables IP hiding (WARP), brings up the server, configures Jackett, **reads the API key for you**, and offers to **add search indexers straight from Jackett** (public ones instantly, private ones with login/captcha). It prints the key at the end — copy it for Step 5 and jump straight there. If a server is already installed, you get a **REPAIR / DELETE / QUIT** choice. Want full manual control — do Steps 3–4 below.
 
 ## Step 1. Install Docker Desktop
 

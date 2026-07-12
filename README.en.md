@@ -36,15 +36,17 @@ This stack is deployed in an isolated environment using **Docker Compose** and c
 
 ### ⚡ Fast path — the installer (recommended)
 
-A single script with a **checkbox menu** brings up the stack and does all the busywork: it generates `.env`, **reads the Jackett API key for you** (no copy-paste), enables CORS and links FlareSolverr, tunes TorrServer, adds the trackers you picked, and prints ready-to-paste Lampa URLs at the end.
+A single script does all the busywork: it picks a **language** (English / Українська / Русский), brings up the stack, generates `.env`, **reads the Jackett API key for you** (no copy-paste), enables CORS and links FlareSolverr, tunes TorrServer, lets you **add search indexers straight from Jackett**, and prints ready-to-paste Lampa URLs at the end.
 
 - **Windows:** double-click **`media-server/install.bat`**.
-- **Linux / NAS / Raspberry Pi:**
+- **Linux / macOS / NAS / Raspberry Pi:**
   ```bash
   cd media-server && bash install.sh
   ```
 
-Use arrows/space in the menu to pick what you need (IP hiding via WARP, private trackers) — that's it. The script is **idempotent**, so re-run it anytime. You only need Docker installed; the installer reminds you about router port forwarding but can't automate it.
+**Adding indexers by type:** public ones add instantly; semi-private / private ones ask for a login and password (and if an image captcha is required, the installer downloads it so you can type the code); Google reCAPTCHA is done in the Jackett web UI.
+
+If a server is **already installed**, the installer offers **REPAIR** (re-apply config), **DELETE** (remove everything) or **QUIT**. IP hiding via WARP is optional. The script is **idempotent**; you only need Docker installed (it reminds you about router port forwarding but can't automate it).
 
 <details>
 <summary><b>Or manually, step by step ⤵️</b></summary>
@@ -64,21 +66,24 @@ Use arrows/space in the menu to pick what you need (IP hiding via WARP, private 
    - In the top-right corner, copy your **API Key**. You'll need it to connect to Lampa.
 
 4. **Automatic setup (recommended):**
-   Instead of adding each tracker manually, use the script. It will configure TorrServer optimization and add all private trackers in one step.
-   - Copy the template and fill in your data:
+   The `configure.ps1` script enables TorrServer optimization, CORS, and links FlareSolverr.
+   - Copy the template:
      ```powershell
-     Copy-Item .env.example .env   # then edit .env
+     Copy-Item .env.example .env
      ```
-   - In `.env` specify `JACKETT_APIKEY` (from the Jackett web interface) and tracker logins/passwords.
+   - `.env` is ready by default; the script **reads the Jackett API key itself** from `ServerConfig.json`. Adjust the TorrServer tuning values in `.env` if you want.
    - Run:
      ```powershell
      ./configure.ps1
      ```
-   The script is **idempotent** — it can be safely run repeatedly. To add a new private tracker, just add one line to the `$Trackers` array inside `configure.ps1` and the corresponding variables in `.env`.
+   The script is **idempotent** — it can be safely run repeatedly.
+
+5. **Search indexers (trackers):**
+   Added **on demand**, not hardcoded. Easiest is the installer (`install.bat` / `install.sh`), which reads the full list straight from Jackett and adds the ones you pick (public instantly, others with login/captcha). Or manually with the **`+ Add indexer`** button in the Jackett web interface.
 
 </details>
 
-> 🔒 **Security:** the `.env` file contains passwords and the API key and **does not go into git** (added to `.gitignore`). Never commit it. Public trackers (ThePirateBay, 1337x) don't require a login — they can be added with the **"+ Add indexer"** button in the Jackett web interface.
+> 🔒 **Security:** the `.env` file holds the API key and (if you use WARP) a private key — it **does not go into git** (`.gitignore`). Never commit it. Private-tracker logins/passwords are stored by **Jackett** itself (in `jackett_config/`), not in `.env`.
 
 ---
 
