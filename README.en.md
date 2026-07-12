@@ -36,7 +36,7 @@ This stack is deployed in an isolated environment using **Docker Compose** and c
 
 ### ⚡ Fast path — the installer (recommended)
 
-A single script does all the busywork: it picks a **language** (English / Українська / Русский), brings up the stack, generates `.env`, **reads the Jackett API key for you** (no copy-paste), enables CORS and links FlareSolverr, tunes TorrServer, lets you **add search indexers straight from Jackett**, and prints ready-to-paste Lampa URLs at the end.
+A single script does all the busywork: it picks a **language** (English / Українська / Русский), brings up the stack, generates `.env`, **reads the Jackett API key for you** (no copy-paste), enables CORS and links FlareSolverr, tunes TorrServer, **opens the Jackett web UI** so you can add indexers, and saves the ready-to-use Lampa addresses to `lampa_settings.txt`.
 
 - **Windows:** double-click **`install.bat`** in the project root.
 - **Linux / macOS / NAS / Raspberry Pi:** from the project root run
@@ -44,7 +44,8 @@ A single script does all the busywork: it picks a **language** (English / Укр
   bash install.sh
   ```
 
-**Adding indexers by type:** public ones add instantly; semi-private / private ones ask for a login and password (and if an image captcha is required, the installer downloads it so you can type the code); Google reCAPTCHA is done in the Jackett web UI.
+**Adding indexers:** after a successful run the installer automatically opens your browser at `http://localhost:9117` (the Jackett web UI). There you can click **`+ Add indexer`** and add the trackers you want (public or private, with login and captcha).
+**Saved settings:** when the install finishes, all the ready addresses (TorrServer, Jackett) and the API key it read are written to **`lampa_settings.txt`** in the repo root, so you always have them handy.
 
 If a server is **already installed**, the installer offers **REPAIR** (re-apply config), **DELETE** (remove everything) or **QUIT**. IP hiding via WARP is optional. The script is **idempotent**; you only need Docker installed (it reminds you about router port forwarding but can't automate it).
 
@@ -79,7 +80,7 @@ If a server is **already installed**, the installer offers **REPAIR** (re-apply 
    The script is **idempotent** — it can be safely run repeatedly.
 
 5. **Search indexers (trackers):**
-   Added **on demand**, not hardcoded. Easiest is the installer (`install.bat` / `install.sh`), which reads the full list straight from Jackett and adds the ones you pick (public instantly, others with login/captcha). Or manually with the **`+ Add indexer`** button in the Jackett web interface.
+   Added **on demand**, not hardcoded. Open the Jackett web UI (`http://localhost:9117`), click **`+ Add indexer`** and find the trackers you want (e.g. Rutracker, Toloka, 1337x). For private trackers Jackett asks for a login/password and handles the captcha itself if there is one.
 
 </details>
 

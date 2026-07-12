@@ -4,8 +4,8 @@
 #
 #  Fresh install: choose IP-hiding (WARP), generate .env, bring up the stack,
 #  auto-read the Jackett API key, enable CORS + link FlareSolverr, tune
-#  TorrServer, then let you add search indexers straight from Jackett (public
-#  ones add instantly; login/captcha trackers prompt as needed).
+#  TorrServer, then open the Jackett web UI so you can add search indexers
+#  there (public ones instantly; login/captcha trackers via their own form).
 #
 #  If a server is already installed here it offers REPAIR / DELETE / QUIT.
 #
@@ -17,7 +17,8 @@
 # ============================================================================
 set -Eeuo pipefail
 trap 'printf "\e[31mInstaller aborted (line %s).\e[0m\n" "$LINENO" >&2' ERR
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+cd "$SCRIPT_DIR" || exit 1
 
 HELPER=(python3 lib/setup_helpers.py)
 COMPOSE_FILE="docker-compose.yml"
@@ -48,13 +49,14 @@ declare -A T_en=(
   [api_ok]="API key read automatically; CORS + FlareSolverr linked."
   [api_fail]="Could not read Jackett API key yet - open http://localhost:9117 and re-run."
   [tuning]="Tuning TorrServer..." [torr_unreach]="TorrServer not reachable yet - re-run later to tune."
-  [ask_idx]="Add search indexers from Jackett now? [Y/n] "
+  [opening_jackett]="Opening Jackett in browser to add indexers..."
   [finished]="Done." [repaired]="Repaired." [point]="Point Lampa at your server:"
   [apilabel]="API key" [paste]="(paste it into Lampa -> Parser/Jackett)"
   [ipon]="IP hiding : ON - verify with: docker exec warp wget -qO- https://api.ipify.org"
   [reminder]="Reminder: for WAN access, forward TCP+UDP port 42116 on your router."
   [lang_prompt]="Language: [1] English  [2] Українська  [3] Русский"
-  [tagline]="Fuel for your Lampa — a light local media server"
+  [tagline]="Fuel for your Lampa — a light local media server" [ip_select]="Select IP address for Lampa:"
+  [saved_info]="Access details saved to: lampa_settings.txt"
 )
 # shellcheck disable=SC2034
 declare -A T_uk=(
@@ -74,13 +76,14 @@ declare -A T_uk=(
   [api_ok]="API-ключ зчитано автоматично; CORS + FlareSolverr під'єднано."
   [api_fail]="Поки не вдалося зчитати API-ключ Jackett - відкрийте http://localhost:9117 і запустіть знову."
   [tuning]="Оптимізація TorrServer..." [torr_unreach]="TorrServer поки недоступний - запустіть пізніше для налаштування."
-  [ask_idx]="Додати пошукові індексатори з Jackett зараз? [Y/n] "
+  [opening_jackett]="Відкриваємо Jackett у браузері для додавання індексаторів..."
   [finished]="Готово." [repaired]="Відремонтовано." [point]="Вкажіть у Lampa адресу сервера:"
   [apilabel]="API-ключ" [paste]="(вставте в Lampa -> Парсер/Jackett)"
   [ipon]="Приховування IP: УВІМК - перевірка: docker exec warp wget -qO- https://api.ipify.org"
   [reminder]="Нагадування: для доступу з інтернету пробросьте TCP+UDP порт 42116 на роутері."
   [lang_prompt]="Мова: [1] English  [2] Українська  [3] Русский"
-  [tagline]="Живлення для вашої Lampa — легкий локальний медіасервер"
+  [tagline]="Живлення для вашої Lampa — легкий локальний медіасервер" [ip_select]="Виберіть IP-адресу для Lampa:"
+  [saved_info]="Адреси, ключі та інструкцію збережено у файл: lampa_settings.txt"
 )
 # shellcheck disable=SC2034
 declare -A T_ru=(
@@ -100,13 +103,14 @@ declare -A T_ru=(
   [api_ok]="API-ключ считан автоматически; CORS + FlareSolverr подключены."
   [api_fail]="Пока не удалось считать API-ключ Jackett - откройте http://localhost:9117 и запустите снова."
   [tuning]="Оптимизация TorrServer..." [torr_unreach]="TorrServer пока недоступен - запустите позже для настройки."
-  [ask_idx]="Добавить поисковые индексаторы из Jackett сейчас? [Y/n] "
+  [opening_jackett]="Открываем Jackett в браузере для добавления индексаторов..."
   [finished]="Готово." [repaired]="Отремонтировано." [point]="Укажите в Lampa адрес сервера:"
   [apilabel]="API-ключ" [paste]="(вставьте в Lampa -> Парсер/Jackett)"
   [ipon]="Скрытие IP: ВКЛ - проверка: docker exec warp wget -qO- https://api.ipify.org"
   [reminder]="Напоминание: для доступа из интернета пробросьте TCP+UDP порт 42116 на роутере."
   [lang_prompt]="Язык: [1] English  [2] Українська  [3] Русский"
-  [tagline]="Топливо для вашей Lampa — лёгкий локальный медиасервер"
+  [tagline]="Топливо для вашей Lampa — лёгкий локальный медиасервер" [ip_select]="Выберите IP-адрес для Lampa:"
+  [saved_info]="Адреса, ключи и инструкция сохранены в файл: lampa_settings.txt"
 )
 t() { local k="$1"; local -n tbl="T_$L"; printf '%s' "${tbl[$k]:-${T_en[$k]}}"; }
 
@@ -162,7 +166,7 @@ do_delete() {
   for f in docker-compose.warp.yml docker-compose.yml; do
     "${DC[@]}" -f "$f" down -v --remove-orphans >/dev/null 2>&1 || true
   done
-  rm -rf jackett_config torrserver_data warp .env
+  rm -rf jackett_config torrserver_data warp .env lampa_settings.txt ../lampa_settings.txt
   ok "$(t removed)"
 }
 
@@ -184,10 +188,30 @@ if is_installed; then
     quit)   exit 0 ;;
     delete) do_delete; exit 0 ;;
     repair) MODE=repair; say "$(t repairing)"
-            if [ -n "$(get_env WARP_PRIVATE_KEY)" ] || docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx warp; then WANT_WARP=1; fi
+            WARP_KEY_SET=0
+            if [ -n "$(get_env WARP_PRIVATE_KEY)" ]; then WANT_WARP=1; WARP_KEY_SET=1
+            elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx warp; then WANT_WARP=1; fi
             [ -f .env ] || cp .env.example .env ;;
     *)      MODE=repair ;;
   esac
+  # If we want WARP but the key is missing — generate it now (same as fresh install)
+  if [ "$WANT_WARP" -eq 1 ] && [ "${WARP_KEY_SET:-0}" -eq 0 ]; then
+    say "$(t warp_gen)"
+    if profile=$(docker run --rm alpine sh -c \
+        'apk add --no-cache curl >/dev/null 2>&1 && curl -sL -o /wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x /wgcf && cd /tmp && /wgcf register --accept-tos >/dev/null 2>&1 && /wgcf generate >/dev/null 2>&1 && cat wgcf-profile.conf' 2>/dev/null); then
+      WARP_KEY=$(printf '%s\n' "$profile" | awk -F' *= *' '/PrivateKey/{print $2; exit}')
+      WARP_ADDR=$(printf '%s\n' "$profile" | awk -F' *= *' '/Address/{print $2; exit}')
+      if [ -n "$WARP_KEY" ]; then
+        "${HELPER[@]}" render-env .env .env \
+          --set "WARP_PRIVATE_KEY=${WARP_KEY}" --set "WARP_ADDRESS_V4=${WARP_ADDR:-172.16.0.2/32}"
+        ok "$(t warp_ok)"
+      else
+        warn "$(t warp_parsefail)"
+      fi
+    else
+      warn "$(t warp_genfail)"
+    fi
+  fi
 fi
 
 # --- Fresh install: choose IP hiding ----------------------------------------
@@ -254,16 +278,44 @@ fi
 say "$(t tuning)"
 "${HELPER[@]}" tune-torrserver "http://127.0.0.1:8090" || warn "$(t torr_unreach)"
 
-# --- Add search indexers from the live Jackett (interactive) ----------------
+# --- Open Jackett to add search indexers ------------------------------------
 if [ "$NONINTERACTIVE" != "1" ] && [ -n "$APIKEY" ]; then
-  read -r -p "$(t ask_idx)" a
-  case "${a,,}" in n*|н*) : ;; *) "${HELPER[@]}" add-indexers "http://127.0.0.1:9117" "$APIKEY" --lang "$L" || true ;; esac
+  say "$(t opening_jackett)"
+  if have xdg-open; then xdg-open "http://localhost:9117" >/dev/null 2>&1 || true
+  elif have open; then open "http://localhost:9117" >/dev/null 2>&1 || true
+  fi
 fi
 
 # --- Summary ----------------------------------------------------------------
-LAN_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
-[ -z "${LAN_IP:-}" ] && LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-[ -z "${LAN_IP:-}" ] && LAN_IP="<PC-IP>"
+LAN_IPS=()
+if have ip; then
+  while read -r line; do
+    ip_addr=$(echo "$line" | awk '{print $4}' | cut -d/ -f1)
+    if [ -n "$ip_addr" ] && [ "$ip_addr" != "127.0.0.1" ]; then
+      LAN_IPS+=("$ip_addr")
+    fi
+  done < <(ip -4 -o addr show scope global 2>/dev/null)
+fi
+if [ "${#LAN_IPS[@]}" -eq 0 ] && have hostname; then
+  for ip_addr in $(hostname -I 2>/dev/null); do
+    [ "$ip_addr" != "127.0.0.1" ] && LAN_IPS+=("$ip_addr")
+  done
+fi
+
+if [ "${#LAN_IPS[@]}" -gt 1 ] && [ "$NONINTERACTIVE" != "1" ]; then
+  echo
+  say "$(t ip_select)"
+  select picked_ip in "${LAN_IPS[@]}"; do
+    if [ -n "$picked_ip" ]; then
+      LAN_IP="$picked_ip"
+      break
+    fi
+  done
+elif [ "${#LAN_IPS[@]}" -ge 1 ]; then
+  LAN_IP="${LAN_IPS[0]}"
+else
+  LAN_IP="<PC-IP>"
+fi
 
 echo
 say "$([ "$MODE" = repair ] && t repaired || t finished) $(t point)"
@@ -273,3 +325,24 @@ printf '  %sJackett   :%s http://%s:9117\n' "$C_GREEN" "$C_OFF" "$LAN_IP"
   "$C_GREEN" "$(t apilabel)" "$C_OFF" "$APIKEY" "$C_DIM" "$(t paste)" "$C_OFF"
 [ "$WANT_WARP" -eq 1 ] && printf '  %s%s%s\n' "$C_GREEN" "$(t ipon)" "$C_OFF"
 printf '%s  %s%s\n' "$C_DIM" "$(t reminder)" "$C_OFF"
+
+cat <<EOF > "$SCRIPT_DIR/lampa_settings.txt"
+==================================================
+  TORLAMP — MEDIA SERVER ACCESS INFO
+==================================================
+Date / Дата : $(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date)
+
+TorrServer URL : http://${LAN_IP}:8090
+Jackett URL    : http://${LAN_IP}:9117
+Jackett API Key: ${APIKEY:-}
+
+Lampa Setup / Налаштування в Lampa:
+1. Lampa -> Настройки -> Парсер (або Jackett) -> Увімкнути
+2. Адрес парсера / Jackett : http://${LAN_IP}:9117
+3. API ключ                : ${APIKEY:-}
+4. Lampa -> Настройки -> Торренты -> TorrServer
+5. Адрес TorrServer        : http://${LAN_IP}:8090
+==================================================
+EOF
+cp "$SCRIPT_DIR/lampa_settings.txt" "$SCRIPT_DIR/../lampa_settings.txt" 2>/dev/null || true
+printf '%s  %s%s\n' "$C_DIM" "$(t saved_info)" "$C_OFF"

@@ -2,8 +2,8 @@
 
 ## v0.5.1-beta
 
-Rebrand and packaging polish over v0.5.0-beta — no breaking changes; the stack,
-ports and configuration are identical.
+Rebrand and packaging polish over v0.5.0-beta — same stack and ports; indexer
+setup now happens in the Jackett web UI instead of a CLI prompt.
 
 ### Changes
 - **Rebranded to Torlamp** (Torrent + Lampa) across all docs and installers,
@@ -12,12 +12,21 @@ ports and configuration are identical.
 - **Root-level installer launchers** — `install.bat` / `install.sh` now sit at the
   top of the project (and this ZIP) and delegate to the real installer in
   `media-server/`. No more digging through folders.
-- **Doc accuracy fixes** — corrected the manual-setup note about `configure.ps1`
-  and the Jackett API key; added the optional P2P port `42116` to the firewall
-  step; clarified that `JACKETT_APIKEY` in `.env` is informational.
+- **Indexers via the Jackett web UI** — the installer now opens Jackett in your
+  browser to add trackers there (100% captcha/login compatibility), instead of a
+  CLI prompt that broke on changing tracker auth. The CLI add-indexer flow was removed.
+- **`lampa_settings.txt`** — the installer saves the ready TorrServer/Jackett URLs
+  and API key (plus Lampa setup steps) to this file so you always have them handy.
+- **Network-adapter picker** — on a multi-IP machine the installer asks which
+  LAN IP to advertise to Lampa.
+- **Jackett reachability fix** — bind Jackett to all interfaces
+  (`LocalBindAddress=*`, `AllowExternal`) so Docker port-mapping works from the host/TV.
+- **WARP REPAIR fix** — regenerate the WARP key on REPAIR if it's missing, so the
+  `warp` container (and TorrServer behind it) no longer crash-loops.
+- **Doc accuracy fixes** — `configure.ps1` / API-key note, firewall port `42116`,
+  `JACKETT_APIKEY` clarified.
 - **Installer robustness** — wait for Jackett to be ready again after its
-  post-config restart, so the indexer step (and CI) no longer races it.
-- **Repo hygiene** — enforce LF line endings for shell scripts via `.gitattributes`.
+  post-config restart; enforce LF line endings for shell scripts via `.gitattributes`.
 
 ### Install
 - **Windows:** download this release, unzip, double-click `install.bat`.

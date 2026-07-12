@@ -57,7 +57,9 @@ class RenderEnv(unittest.TestCase):
 class PatchJackett(unittest.TestCase):
     def test_enables_cors_and_links_flaresolverr(self):
         cfg, changed = sh.patch_jackett_config(
-            {"APIKey": "k", "AllowCORS": False}, "http://flaresolverr:8191")
+            {"APIKey": "k", "AllowCORS": False,
+             "LocalBindAddress": "*", "AllowExternal": True},
+            "http://flaresolverr:8191")
         self.assertTrue(changed)
         self.assertTrue(cfg["AllowCORS"])
         self.assertEqual(cfg["FlareSolverrUrl"], "http://flaresolverr:8191")
@@ -68,8 +70,25 @@ class PatchJackett(unittest.TestCase):
         self.assertTrue(changed)
         self.assertTrue(cfg["AllowCORS"])
 
+    def test_fixes_localhost_bind(self):
+        cfg, changed = sh.patch_jackett_config(
+            {"APIKey": "k", "AllowCORS": True, "FlareSolverrUrl": "http://fs:8191",
+             "LocalBindAddress": "127.0.0.1", "AllowExternal": True},
+            "http://fs:8191")
+        self.assertTrue(changed)
+        self.assertEqual(cfg["LocalBindAddress"], "*")
+
+    def test_enables_allow_external(self):
+        cfg, changed = sh.patch_jackett_config(
+            {"APIKey": "k", "AllowCORS": True, "FlareSolverrUrl": "http://fs:8191",
+             "LocalBindAddress": "*", "AllowExternal": False},
+            "http://fs:8191")
+        self.assertTrue(changed)
+        self.assertTrue(cfg["AllowExternal"])
+
     def test_no_change_when_already_configured(self):
-        cfg = {"APIKey": "k", "AllowCORS": True, "FlareSolverrUrl": "http://fs:8191"}
+        cfg = {"APIKey": "k", "AllowCORS": True, "FlareSolverrUrl": "http://fs:8191",
+               "LocalBindAddress": "*", "AllowExternal": True}
         _, changed = sh.patch_jackett_config(dict(cfg), "http://fs:8191")
         self.assertFalse(changed)
 
@@ -88,49 +107,6 @@ class MergeTorrServer(unittest.TestCase):
     def test_explicit_override_wins(self):
         merged = sh.merge_torrserver_settings({}, CacheSize=999)
         self.assertEqual(merged["CacheSize"], 999)
-
-
-class Indexers(unittest.TestCase):
-    def test_classify(self):
-        self.assertEqual(sh.classify_indexer("public"), "public")
-        self.assertEqual(sh.classify_indexer("semi-private"), "semi-private")
-        self.assertEqual(sh.classify_indexer("private"), "private")
-        self.assertEqual(sh.classify_indexer(None), "private")
-
-    def test_field_kind(self):
-        self.assertEqual(sh.field_kind({"id": "username", "type": "inputstring"}), "text")
-        self.assertEqual(sh.field_kind({"id": "password", "type": "password"}), "password")
-        self.assertEqual(sh.field_kind({"id": "pass", "type": "inputstring"}), "password")
-        self.assertEqual(sh.field_kind({"id": "sitelink", "type": "inputstring"}), "skip")
-        self.assertEqual(sh.field_kind({"id": "x", "type": "displayinfo"}), "skip")
-        self.assertEqual(sh.field_kind({"id": "cap", "type": "cardigannCaptcha"}), "captcha")
-        self.assertEqual(sh.field_kind({"id": "g", "type": "recaptcha"}), "recaptcha")
-        self.assertEqual(sh.field_kind({"id": "freeleech", "type": "inputbool"}), "bool")
-
-    def test_public_indexer_has_no_fillable_fields(self):
-        items = [{"id": "sitelink", "type": "inputstring", "value": "https://x/"},
-                 {"id": "info", "type": "displayinfo", "value": "hello"}]
-        self.assertEqual(sh.fillable_fields(items), [])
-
-    def test_login_indexer_fillable(self):
-        items = [{"id": "username", "type": "inputstring"},
-                 {"id": "password", "type": "password"},
-                 {"id": "sitelink", "type": "inputstring"}]
-        got = [f["id"] for f in sh.fillable_fields(items)]
-        self.assertEqual(got, ["username", "password"])
-
-    def test_build_config_body_applies_answers_without_mutating(self):
-        items = [{"id": "username", "type": "inputstring", "value": ""}]
-        out = sh.build_config_body(items, {"username": "alice"})
-        self.assertEqual(out[0]["value"], "alice")
-        self.assertEqual(items[0]["value"], "")  # original untouched
-
-    def test_parse_selection(self):
-        self.assertEqual(sh.parse_selection("1,3,5-7", 10), [0, 2, 4, 5, 6])
-        self.assertEqual(sh.parse_selection("2", 3), [1])
-        self.assertEqual(sh.parse_selection("", 3), [])
-        self.assertEqual(sh.parse_selection("99", 3), [])       # out of range ignored
-        self.assertEqual(sh.parse_selection("3-1", 5), [])      # reversed range yields nothing
 
 
 class Cli(unittest.TestCase):

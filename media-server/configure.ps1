@@ -4,11 +4,11 @@
       * applies TorrServer performance tuning (RAM cache, connection limit);
       * enables CORS and links FlareSolverr in Jackett.
 
-    Search indexers are added on demand from the live Jackett — see install.ps1
-    / install.sh (which call `setup_helpers.py add-indexers`).
+    Search indexers are added by the user in the Jackett web UI, which
+    install.ps1 / install.sh open automatically after configuring.
 
 .DESCRIPTION
-    Idempotent — safe to run repeatedly. Reads tuning values from .env, so no
+    Idempotent -- safe to run repeatedly. Reads tuning values from .env, so no
     secrets live in this file.
 
 .EXAMPLE
@@ -30,7 +30,7 @@ function Import-DotEnv {
     param([string]$Path)
     $vars = @{}
     if (-not (Test-Path $Path)) {
-        Write-Warning "No .env found at $Path — credentials will be empty."
+        Write-Warning "No .env found at $Path -- credentials will be empty."
         return $vars
     }
     foreach ($line in Get-Content -LiteralPath $Path) {
@@ -53,7 +53,7 @@ function Wait-ForService {
             Invoke-WebRequest -Uri $Url -Method Head -TimeoutSec 5 -UseBasicParsing | Out-Null
             return $true
         } catch {
-            # HTTP errors still mean the port answered — service is up.
+            # HTTP errors still mean the port answered -- service is up.
             if ($_.Exception.Response) { return $true }
             Start-Sleep -Seconds 2
         }
@@ -67,7 +67,7 @@ function Set-TorrServerTuning {
         $current = Invoke-RestMethod -Uri "$TorrServerUrl/settings" -Method Post `
             -ContentType 'application/json' -Body (@{ action = 'get' } | ConvertTo-Json)
     } catch {
-        Write-Host "  ! TorrServer settings unreachable — $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  ! TorrServer settings unreachable -- $($_.Exception.Message)" -ForegroundColor Red
         return
     }
     $current.CacheSize                = $CacheSize
@@ -80,39 +80,61 @@ function Set-TorrServerTuning {
         $gib = [math]::Round($CacheSize / 1GB, 2)
         Write-Host "  + TorrServer: cache ${gib} GiB, $ConnLimit connections, peer port $PeerPort, disconnect timeout ${DisconnectTimeout}s" -ForegroundColor Green
     } catch {
-        Write-Host "  ! TorrServer tuning failed — $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  ! TorrServer tuning failed -- $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
 function Set-JackettFlareSolverr {
-    # Point Jackett at the FlareSolverr container so it can index
-    # Cloudflare-protected trackers (1337x, etc). Patches ServerConfig.json
-    # directly (Jackett has no public API for this) and restarts if changed.
+    # Patch Jackett's ServerConfig.json:
+    #   - FlareSolverrUrl  -> point at the FlareSolverr container
+    #   - AllowCORS        -> let Lampa (cross-origin) read Jackett responses
+    #   - LocalBindAddress -> '*' so Docker port-mapping works (127.0.0.1
+    #     inside a container rejects traffic from the host)
+    #   - AllowExternal    -> required together with the wildcard bind
     param([string]$Url)
     $cfgPath = Join-Path $PSScriptRoot 'jackett_config/Jackett/ServerConfig.json'
     if (-not (Test-Path $cfgPath)) {
-        Write-Host "  - FlareSolverr: Jackett config not found yet — skipped" -ForegroundColor Yellow
+        Write-Host "  - FlareSolverr: Jackett config not found yet -- skipped" -ForegroundColor Yellow
         return
     }
     $cfg = Get-Content -Raw $cfgPath | ConvertFrom-Json
-    # AllowCORS lets the Lampa web UI (a different origin) read Jackett's
-    # responses — without it the TV shows "parser not responding" (see README FAQ).
-    $corsOk = [bool]$cfg.AllowCORS
-    if ($cfg.FlareSolverrUrl -eq $Url -and $corsOk) {
-        Write-Host "  = FlareSolverr + CORS: already set ($Url)" -ForegroundColor DarkGray
-        return
+    $changed = $false
+
+    # FlareSolverr URL
+    if ($cfg.FlareSolverrUrl -ne $Url) {
+        $cfg.FlareSolverrUrl = $Url
+        $changed = $true
     }
-    $cfg.FlareSolverrUrl = $Url
-    if (-not $corsOk) {
+    # CORS -- lets the Lampa web UI (a different origin) read Jackett's
+    # responses -- without it the TV shows "parser not responding" (see README FAQ).
+    if (-not [bool]$cfg.AllowCORS) {
         if ($cfg.PSObject.Properties.Name -contains 'AllowCORS') { $cfg.AllowCORS = $true }
         else { $cfg | Add-Member -NotePropertyName AllowCORS -NotePropertyValue $true }
+        $changed = $true
+    }
+    # LocalBindAddress -- must be '*' inside Docker so port-mapped traffic
+    # (which arrives on the container's external NIC, not loopback) is accepted.
+    if ($cfg.LocalBindAddress -eq '127.0.0.1') {
+        $cfg.LocalBindAddress = '*'
+        $changed = $true
+    }
+    # AllowExternal -- required alongside the wildcard bind.
+    if (-not [bool]$cfg.AllowExternal) {
+        if ($cfg.PSObject.Properties.Name -contains 'AllowExternal') { $cfg.AllowExternal = $true }
+        else { $cfg | Add-Member -NotePropertyName AllowExternal -NotePropertyValue $true }
+        $changed = $true
+    }
+
+    if (-not $changed) {
+        Write-Host "  = Jackett config: already OK (FlareSolverr, CORS, bind)" -ForegroundColor DarkGray
+        return
     }
     $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $cfgPath -Encoding UTF8
     try {
         docker restart jackett | Out-Null
-        Write-Host "  + FlareSolverr linked + CORS enabled ($Url), Jackett restarted" -ForegroundColor Green
+        Write-Host "  + Jackett patched (FlareSolverr, CORS, bind *), restarted" -ForegroundColor Green
     } catch {
-        Write-Host "  + FlareSolverr + CORS set in config — restart Jackett to apply" -ForegroundColor Green
+        Write-Host "  + Jackett config patched -- restart Jackett to apply" -ForegroundColor Green
     }
 }
 
@@ -132,13 +154,13 @@ $dct   = if ($env['TORRSERVER_DISCONNECT_TIMEOUT']) { [int]$env['TORRSERVER_DISC
 if (Wait-ForService -Url $TorrServerUrl -Name 'TorrServer' -TimeoutSec 10) {
     Set-TorrServerTuning -TorrServerUrl $TorrServerUrl -CacheSize $cache -ConnLimit $conn -PeerPort $port -DisconnectTimeout $dct
 } else {
-    Write-Host "  ! TorrServer not reachable at $TorrServerUrl — skipped" -ForegroundColor Yellow
+    Write-Host "  ! TorrServer not reachable at $TorrServerUrl -- skipped" -ForegroundColor Yellow
 }
 
 Write-Host "Linking FlareSolverr (Cloudflare bypass):" -ForegroundColor Cyan
 $fsUrl = if ($env['JACKETT_FLARESOLVERR_URL']) { $env['JACKETT_FLARESOLVERR_URL'] } else { 'http://flaresolverr:8191' }
 Set-JackettFlareSolverr -Url $fsUrl
-# Jackett may have just restarted above — wait until it serves again so callers
+# Jackett may have just restarted above -- wait until it serves again so callers
 # (e.g. the indexer-add step) don't hit it mid-restart.
 Wait-ForService -Url $JackettUrl -Name 'Jackett' -TimeoutSec 30 | Out-Null
 

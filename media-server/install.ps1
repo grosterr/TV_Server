@@ -5,8 +5,7 @@
 .DESCRIPTION
     Choose IP-hiding (WARP), then this script generates .env, brings up the
     Docker stack, runs configure.ps1 (auto API key, CORS, FlareSolverr, tuning)
-    and lets you add search indexers straight from the live Jackett — public
-    ones add instantly, login/captcha trackers prompt as needed.
+    and opens the Jackett web UI so you can add search indexers there.
 
     If a server is already installed here, it instead offers REPAIR / DELETE /
     QUIT. UI language: English / Українська / Русский.
@@ -41,7 +40,7 @@ function Show-Menu {
             Write-Host $Title -ForegroundColor Cyan
             Write-Host "(up/down move - Enter select)`n" -ForegroundColor DarkGray
             for ($i = 0; $i -lt $Options.Count; $i++) {
-                $line = "  {0,-8}{1}" -f $Options[$i].Key, $Options[$i].Desc
+                $line = "  {0,-16}{1}" -f $Options[$i].Key, $Options[$i].Desc
                 if ($i -eq $idx) { Write-Host (">$line") -ForegroundColor Black -BackgroundColor Gray }
                 else             { Write-Host (" $line") }
             }
@@ -68,7 +67,7 @@ function Remove-Install { param([string[]]$DC)
     foreach ($f in 'docker-compose.warp.yml','docker-compose.yml') {
         & $DC[0] @($DC[1..($DC.Count-1)]) -f $f down -v --remove-orphans *> $null
     }
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue jackett_config, torrserver_data, warp, .env
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue jackett_config, torrserver_data, warp, .env, lampa_settings.txt, ..\lampa_settings.txt
     Write-Host ("  + " + (L 'removed')) -ForegroundColor Green
 }
 
@@ -84,11 +83,11 @@ $MSG = @{
     warp_item='Hide IP for P2P (Cloudflare WARP)'; warp_gen='Generating a free Cloudflare WARP profile...'
     warp_ok='WARP profile generated.'; warp_parsefail='Could not parse WARP profile - set WARP_PRIVATE_KEY in .env manually.'
     warp_genfail='WARP profile generation failed - set WARP keys in .env later.'; starting='Starting containers ({0})...'
-    configuring='Configuring services...'; ask_idx='Add search indexers from Jackett now? [Y/n]'
-    idx_nopy='To add indexers, open Jackett at http://localhost:9117 (or install Python and re-run).'
+    configuring='Configuring services...'; opening_jackett='Opening Jackett in browser to add indexers...'
     done='Done.'; repaired='Repaired.'; point='Point Lampa at your server:'; apilabel='API key'
     paste='(paste it into Lampa -> Parser/Jackett)'; ipon='IP hiding : ON'; reminder='Reminder: for WAN access, forward TCP+UDP port 42116 on your router.'
-    tagline='Fuel for your Lampa - a light local media server'
+    tagline='Fuel for your Lampa - a light local media server'; ip_select='Select network adapter / IP for Lampa'
+    saved_info='Access details saved to: lampa_settings.txt'
   }
   uk = @{
     lang_title='Language / Мова / Язык'; installed_title='Медіасервер уже встановлено в цій папці'
@@ -100,11 +99,11 @@ $MSG = @{
     warp_item='Приховати IP для P2P (Cloudflare WARP)'; warp_gen='Генерація безкоштовного профілю Cloudflare WARP...'
     warp_ok='Профіль WARP згенеровано.'; warp_parsefail='Не вдалося розібрати профіль WARP - впишіть WARP_PRIVATE_KEY у .env вручну.'
     warp_genfail='Не вдалося згенерувати профіль WARP - впишіть ключі WARP у .env пізніше.'; starting='Запуск контейнерів ({0})...'
-    configuring='Налаштування сервісів...'; ask_idx='Додати пошукові індексатори з Jackett зараз? [Y/n]'
-    idx_nopy='Щоб додати індексатори, відкрийте Jackett http://localhost:9117 (або встановіть Python і запустіть знову).'
+    configuring='Налаштування сервісів...'; opening_jackett='Відкриваємо Jackett у браузері для додавання індексаторів...'
     done='Готово.'; repaired='Відремонтовано.'; point='Вкажіть у Lampa адресу сервера:'; apilabel='API-ключ'
     paste='(вставте в Lampa -> Парсер/Jackett)'; ipon='Приховування IP: УВІМК'; reminder='Нагадування: для доступу з інтернету пробросьте TCP+UDP порт 42116 на роутері.'
-    tagline='Живлення для вашої Lampa - легкий локальний медіасервер'
+    tagline='Живлення для вашої Lampa - легкий локальний медіасервер'; ip_select='Виберіть мережевий адаптер / IP для Lampa'
+    saved_info='Адреси, ключі та інструкцію збережено у файл: lampa_settings.txt'
   }
   ru = @{
     lang_title='Language / Мова / Язык'; installed_title='Медиасервер уже установлен в этой папке'
@@ -116,11 +115,11 @@ $MSG = @{
     warp_item='Скрыть IP для P2P (Cloudflare WARP)'; warp_gen='Генерация бесплатного профиля Cloudflare WARP...'
     warp_ok='Профиль WARP сгенерирован.'; warp_parsefail='Не удалось разобрать профиль WARP - впишите WARP_PRIVATE_KEY в .env вручную.'
     warp_genfail='Не удалось сгенерировать профиль WARP - впишите ключи WARP в .env позже.'; starting='Запуск контейнеров ({0})...'
-    configuring='Настройка сервисов...'; ask_idx='Добавить поисковые индексаторы из Jackett сейчас? [Y/n]'
-    idx_nopy='Чтобы добавить индексаторы, откройте Jackett http://localhost:9117 (или установите Python и запустите снова).'
+    configuring='Настройка сервисов...'; opening_jackett='Открываем Jackett в браузере для добавления индексаторов...'
     done='Готово.'; repaired='Отремонтировано.'; point='Укажите в Lampa адрес сервера:'; apilabel='API-ключ'
     paste='(вставьте в Lampa -> Парсер/Jackett)'; ipon='Скрытие IP: ВКЛ'; reminder='Напоминание: для доступа из интернета пробросьте TCP+UDP порт 42116 на роутере.'
-    tagline='Топливо для вашей Lampa - лёгкий локальный медиасервер'
+    tagline='Топливо для вашей Lampa - лёгкий локальный медиасервер'; ip_select='Выберите сетевой адаптер / IP для Lampa'
+    saved_info='Адреса, ключи и инструкция сохранены в файл: lampa_settings.txt'
   }
 }
 function L([string]$k) { $t = $MSG[$script:Lang]; if ($t.ContainsKey($k)) { $t[$k] } else { $MSG.en[$k] } }
@@ -171,15 +170,21 @@ if ($mode -eq 'install') {
         Write-Host "`n$(L 'warp_gen')" -ForegroundColor Cyan
         $gen = 'apk add --no-cache curl >/dev/null 2>&1 && curl -sL -o /wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x /wgcf && cd /tmp && /wgcf register --accept-tos >/dev/null 2>&1 && /wgcf generate >/dev/null 2>&1 && cat wgcf-profile.conf'
         try {
+            $oldEap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
             $warpProfile = docker run --rm alpine sh -c $gen 2>$null
-            $key  = ($warpProfile | Select-String 'PrivateKey').ToString().Split('=',2)[1].Trim()
-            $addr = ($warpProfile | Select-String 'Address').ToString().Split('=',2)[1].Trim()
+            $ErrorActionPreference = $oldEap
+            $key  = ($warpProfile | Select-String 'PrivateKey').Line.Split('=',2)[1].Trim()
+            $addr = ($warpProfile | Select-String 'Address').Line.Split('=',2)[1].Trim()
             if ($key) {
                 Set-EnvValue .env 'WARP_PRIVATE_KEY' $key
                 Set-EnvValue .env 'WARP_ADDRESS_V4' $addr
                 Write-Host "  + $(L 'warp_ok')" -ForegroundColor Green
             } else { Write-Warning (L 'warp_parsefail') }
-        } catch { Write-Warning (L 'warp_genfail') }
+        } catch {
+            $ErrorActionPreference = 'Stop'
+            Write-Warning (L 'warp_genfail')
+        }
     }
 } else {
     Write-Host (L 'repairing') -ForegroundColor Cyan
@@ -187,6 +192,27 @@ if ($mode -eq 'install') {
     $warpInEnv = [bool](Get-Content .env | Where-Object { $_ -match '^WARP_PRIVATE_KEY=.+' })
     $warpRunning = (docker ps -a --format '{{.Names}}' 2>$null) -contains 'warp'
     $wantWarp = $warpInEnv -or $warpRunning
+    # If we want WARP but the key is missing — generate it now (same as fresh install)
+    if ($wantWarp -and -not $warpInEnv) {
+        Write-Host "`n$(L 'warp_gen')" -ForegroundColor Cyan
+        $gen = 'apk add --no-cache curl >/dev/null 2>&1 && curl -sL -o /wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x /wgcf && cd /tmp && /wgcf register --accept-tos >/dev/null 2>&1 && /wgcf generate >/dev/null 2>&1 && cat wgcf-profile.conf'
+        try {
+            $oldEap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            $warpProfile = docker run --rm alpine sh -c $gen 2>$null
+            $ErrorActionPreference = $oldEap
+            $key  = ($warpProfile | Select-String 'PrivateKey').Line.Split('=',2)[1].Trim()
+            $addr = ($warpProfile | Select-String 'Address').Line.Split('=',2)[1].Trim()
+            if ($key) {
+                Set-EnvValue .env 'WARP_PRIVATE_KEY' $key
+                Set-EnvValue .env 'WARP_ADDRESS_V4' $addr
+                Write-Host "  + $(L 'warp_ok')" -ForegroundColor Green
+            } else { Write-Warning (L 'warp_parsefail') }
+        } catch {
+            $ErrorActionPreference = 'Stop'
+            Write-Warning (L 'warp_genfail')
+        }
+    }
 }
 
 # --- Banner -----------------------------------------------------------------
@@ -204,25 +230,41 @@ Write-Host "`n$(L 'configuring')" -ForegroundColor Cyan
 
 $apiKey = try { (Get-Content -Raw 'jackett_config/Jackett/ServerConfig.json' | ConvertFrom-Json).APIKey } catch { '' }
 
-# --- Add search indexers from the live Jackett ------------------------------
+# --- Open Jackett to add search indexers ------------------------------------
 if ($apiKey) {
-    $py = if (Test-Cmd python) { 'python' } elseif (Test-Cmd py) { 'py' } else { $null }
-    if ($py) {
-        $ans = Read-Host (L 'ask_idx')
-        if ($ans -notmatch '^(n|н)') {
-            & $py (Join-Path $PSScriptRoot 'lib/setup_helpers.py') add-indexers 'http://127.0.0.1:9117' $apiKey --lang $script:Lang
-        }
-    } else {
-        Write-Host ("  " + (L 'idx_nopy')) -ForegroundColor DarkGray
+    Write-Host "`n$(L 'opening_jackett')" -ForegroundColor Cyan
+    if ($IsWindows -or $IsWindows -eq $null) {
+        Start-Process "http://localhost:9117"
+    } elseif ($IsLinux -and (Test-Cmd xdg-open)) {
+        & xdg-open "http://localhost:9117"
+    } elseif ($IsMacOS -and (Test-Cmd open)) {
+        & open "http://localhost:9117"
     }
 }
 
 # --- Summary ----------------------------------------------------------------
-$lan = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-    Where-Object { $_.IPAddress -notlike '169.254*' -and $_.IPAddress -ne '127.0.0.1' -and
+$candidates = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254*' -and
                    $_.InterfaceAlias -notmatch 'Loopback|vEthernet|WSL|Hyper-V' } |
-    Select-Object -First 1).IPAddress
-if (-not $lan) { $lan = '<PC-IP>' }
+    Sort-Object {
+        if ($_.IPAddress -match '^(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[0-1]))\.') { 0 } else { 1 }
+    }, { $_.InterfaceIndex })
+
+$lan = '<PC-IP>'
+if ($candidates.Count -eq 1) {
+    $lan = $candidates[0].IPAddress
+} elseif ($candidates.Count -gt 1) {
+    $opts = @()
+    foreach ($c in $candidates) {
+        $opts += [pscustomobject]@{ Key = $c.IPAddress; Desc = $c.InterfaceAlias }
+    }
+    $picked = Show-Menu -Title (L 'ip_select') -Options $opts
+    if ($picked -and $picked -ne 'QUIT') {
+        $lan = $picked
+    } else {
+        $lan = $candidates[0].IPAddress
+    }
+}
 
 $headline = if ($mode -eq 'repair') { L 'repaired' } else { L 'done' }
 Write-Host "`n$headline $(L 'point')" -ForegroundColor Cyan
@@ -236,3 +278,29 @@ if ($wantWarp) {
     Write-Host "  $(L 'ipon') - docker exec warp wget -qO- https://api.ipify.org" -ForegroundColor Green
 }
 Write-Host "  $(L 'reminder')" -ForegroundColor DarkGray
+
+$settingsText = @"
+==================================================
+  TORLAMP — MEDIA SERVER ACCESS INFO
+==================================================
+Date / Дата : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+
+TorrServer URL : http://$lan`:8090
+Jackett URL    : http://$lan`:9117
+Jackett API Key: $apiKey
+
+Lampa Setup / Налаштування в Lampa:
+1. Lampa -> Настройки -> Парсер (або Jackett) -> Увімкнути
+2. Адрес парсера / Jackett : http://$lan`:9117
+3. API ключ                : $apiKey
+4. Lampa -> Настройки -> Торренты -> TorrServer
+5. Адрес TorrServer        : http://$lan`:8090
+==================================================
+"@
+try {
+    $outLocal = Join-Path $PSScriptRoot 'lampa_settings.txt'
+    $outRoot  = Join-Path (Split-Path $PSScriptRoot -Parent) 'lampa_settings.txt'
+    [System.IO.File]::WriteAllText($outLocal, $settingsText, [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($outRoot,  $settingsText, [System.Text.Encoding]::UTF8)
+} catch {}
+Write-Host "  $(L 'saved_info')" -ForegroundColor DarkGray
