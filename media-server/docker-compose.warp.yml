@@ -59,8 +59,8 @@ services:
     volumes:
       - ./jackett_config:/config
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-1000}   # installer sets these to the current user so it
+      - PGID=${PGID:-1000}   # can edit ServerConfig.json (CORS, API key) after
       - TZ=Europe/Kyiv
     depends_on:
       - flaresolverr

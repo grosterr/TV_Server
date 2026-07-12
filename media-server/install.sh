@@ -137,6 +137,9 @@ ok ".env ready"
 # --- Bring up the stack -----------------------------------------------------
 COMPOSE_FILE="docker-compose.yml"
 [ "$WANT_WARP" -eq 1 ] && COMPOSE_FILE="docker-compose.warp.yml"
+# linuxserver/jackett writes its config as PUID:PGID. Match the current user so
+# this script can rewrite ServerConfig.json afterward (enable CORS, read key).
+export PUID="${PUID:-$(id -u)}" PGID="${PGID:-$(id -g)}"
 say "Starting containers ($COMPOSE_FILE)..."
 "${DC[@]}" -f "$COMPOSE_FILE" up -d
 

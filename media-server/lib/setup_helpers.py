@@ -103,8 +103,12 @@ def _cmd_patch_jackett(args) -> int:
         return 0
     cfg, changed = patch_jackett_config(cfg, args.flaresolverr_url)
     if changed:
-        with open(args.path, "w", encoding="utf-8") as f:
-            json.dump(cfg, f, indent=2)
+        try:
+            with open(args.path, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, indent=2)
+        except OSError as exc:
+            # Still surface the key we read; the caller warns about the rest.
+            print(f"warning: could not write {args.path}: {exc}", file=sys.stderr)
     print(cfg.get("APIKey", ""))
     return 0
 
