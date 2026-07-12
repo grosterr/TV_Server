@@ -72,8 +72,9 @@ You control everything through the **Lampa** app — a nice catalog with posters
 
 ## Step 2. Download this project
 
-1. On the project's GitHub page → the green **`< > Code` → Download ZIP** button.
-2. Unpack it, for example, into `C:\media-server`.
+1. Open the project's **[Releases](../../releases/latest)** page and download the ready-made **`torlamp-v1.0.zip`** bundle (under *Assets*) — a clean archive with no dev files.
+   > Alternatively, use the green **`< > Code` → Download ZIP** button (the whole repository, including dev files).
+2. Unpack it, for example, into `C:\Torlamp`.
 
 ## Step 3. First run
 
