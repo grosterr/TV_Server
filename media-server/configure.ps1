@@ -115,6 +115,31 @@ function Set-TorrServerTuning {
     }
 }
 
+function Set-JackettFlareSolverr {
+    # Point Jackett at the FlareSolverr container so it can index
+    # Cloudflare-protected trackers (1337x, etc). Patches ServerConfig.json
+    # directly (Jackett has no public API for this) and restarts if changed.
+    param([string]$Url)
+    $cfgPath = Join-Path $PSScriptRoot 'jackett_config/Jackett/ServerConfig.json'
+    if (-not (Test-Path $cfgPath)) {
+        Write-Host "  - FlareSolverr: Jackett config not found yet — skipped" -ForegroundColor Yellow
+        return
+    }
+    $cfg = Get-Content -Raw $cfgPath | ConvertFrom-Json
+    if ($cfg.FlareSolverrUrl -eq $Url) {
+        Write-Host "  = FlareSolverr: already set ($Url)" -ForegroundColor DarkGray
+        return
+    }
+    $cfg.FlareSolverrUrl = $Url
+    $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $cfgPath -Encoding UTF8
+    try {
+        docker restart jackett | Out-Null
+        Write-Host "  + FlareSolverr: linked ($Url), Jackett restarted" -ForegroundColor Green
+    } catch {
+        Write-Host "  + FlareSolverr: set in config — restart Jackett to apply" -ForegroundColor Green
+    }
+}
+
 # --- Main -------------------------------------------------------------------
 $env = Import-DotEnv -Path $EnvFile
 
@@ -147,5 +172,11 @@ Write-Host "Configuring Jackett trackers:" -ForegroundColor Cyan
 foreach ($tracker in $Trackers) {
     Set-JackettIndexer -Tracker $tracker -JackettUrl $JackettUrl -ApiKey $apiKey -Env $env
 }
+
+# Done last: patching FlareSolverr restarts Jackett, so keep it after the
+# tracker API calls that need Jackett up.
+Write-Host "Linking FlareSolverr (Cloudflare bypass):" -ForegroundColor Cyan
+$fsUrl = if ($env['JACKETT_FLARESOLVERR_URL']) { $env['JACKETT_FLARESOLVERR_URL'] } else { 'http://flaresolverr:8191' }
+Set-JackettFlareSolverr -Url $fsUrl
 
 Write-Host "Done." -ForegroundColor Cyan

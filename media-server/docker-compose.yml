@@ -62,4 +62,23 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/Kyiv
+      # FlareSolverr endpoint is stored in Jackett's ServerConfig.json
+      # ("FlareSolverrUrl": "http://flaresolverr:8191"). Set once in the
+      # Jackett dashboard on a fresh install, or via configure.ps1.
+    depends_on:
+      - flaresolverr
+    restart: unless-stopped
+
+  # Solves Cloudflare "challenge" pages so Jackett can index protected
+  # trackers (1337x, some RuTracker mirrors, etc.) — this is a big part of
+  # why aggregators like JacRed/Lampac "have more sources". Runs a headless
+  # browser, so it wants a few hundred MB RAM.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    ports:
+      - "8191:8191"
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Europe/Kyiv
     restart: unless-stopped
