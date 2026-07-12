@@ -3,3 +3,5 @@ jackett_config/
 torrserver_data/
 media-server/warp/
 docs/
+__pycache__/
+*.pyc

@@ -18,13 +18,13 @@ import setup_helpers as sh  # noqa: E402
 
 
 class RenderEnv(unittest.TestCase):
-    BASE = "JACKETT_APIKEY=\nTOLOKA_USER=\nTOLOKA_PASS=\nWARP_ADDRESS_V4=172.16.0.2/32\n"
+    BASE = "JACKETT_APIKEY=\nSITE_USER=\nSITE_PASS=\nWARP_ADDRESS_V4=172.16.0.2/32\n"
 
     def test_replaces_existing_key_in_place(self):
-        out = sh.render_env(self.BASE, {"TOLOKA_USER": "alice"})
-        self.assertIn("TOLOKA_USER=alice\n", out)
-        # order preserved: still before TOLOKA_PASS
-        self.assertLess(out.index("TOLOKA_USER"), out.index("TOLOKA_PASS"))
+        out = sh.render_env(self.BASE, {"SITE_USER": "alice"})
+        self.assertIn("SITE_USER=alice\n", out)
+        # order preserved: still before SITE_PASS
+        self.assertLess(out.index("SITE_USER"), out.index("SITE_PASS"))
 
     def test_appends_missing_key(self):
         out = sh.render_env("FOO=1\n", {"BAR": "2"})
@@ -32,21 +32,21 @@ class RenderEnv(unittest.TestCase):
         self.assertIn("BAR=2\n", out)
 
     def test_blank_does_not_wipe_existing_value(self):
-        text = "TOLOKA_PASS=keepme\n"
-        out = sh.render_env(text, {"TOLOKA_PASS": ""})
-        self.assertIn("TOLOKA_PASS=keepme\n", out)
+        text = "SITE_PASS=keepme\n"
+        out = sh.render_env(text, {"SITE_PASS": ""})
+        self.assertIn("SITE_PASS=keepme\n", out)
 
     def test_blank_sets_when_currently_empty(self):
-        out = sh.render_env("TOLOKA_PASS=\n", {"TOLOKA_PASS": ""})
-        self.assertIn("TOLOKA_PASS=\n", out)
+        out = sh.render_env("SITE_PASS=\n", {"SITE_PASS": ""})
+        self.assertIn("SITE_PASS=\n", out)
 
     def test_special_characters_preserved(self):
         secret = "p@ss=w/rd+key=="
-        out = sh.render_env(self.BASE, {"TOLOKA_PASS": secret})
-        self.assertIn(f"TOLOKA_PASS={secret}\n", out)
+        out = sh.render_env(self.BASE, {"SITE_PASS": secret})
+        self.assertIn(f"SITE_PASS={secret}\n", out)
 
     def test_only_targeted_line_changes(self):
-        out = sh.render_env(self.BASE, {"TOLOKA_USER": "x"})
+        out = sh.render_env(self.BASE, {"SITE_USER": "x"})
         self.assertIn("WARP_ADDRESS_V4=172.16.0.2/32\n", out)
 
     def test_appends_newline_before_key_when_missing_trailing_nl(self):
@@ -90,6 +90,49 @@ class MergeTorrServer(unittest.TestCase):
         self.assertEqual(merged["CacheSize"], 999)
 
 
+class Indexers(unittest.TestCase):
+    def test_classify(self):
+        self.assertEqual(sh.classify_indexer("public"), "public")
+        self.assertEqual(sh.classify_indexer("semi-private"), "semi-private")
+        self.assertEqual(sh.classify_indexer("private"), "private")
+        self.assertEqual(sh.classify_indexer(None), "private")
+
+    def test_field_kind(self):
+        self.assertEqual(sh.field_kind({"id": "username", "type": "inputstring"}), "text")
+        self.assertEqual(sh.field_kind({"id": "password", "type": "password"}), "password")
+        self.assertEqual(sh.field_kind({"id": "pass", "type": "inputstring"}), "password")
+        self.assertEqual(sh.field_kind({"id": "sitelink", "type": "inputstring"}), "skip")
+        self.assertEqual(sh.field_kind({"id": "x", "type": "displayinfo"}), "skip")
+        self.assertEqual(sh.field_kind({"id": "cap", "type": "cardigannCaptcha"}), "captcha")
+        self.assertEqual(sh.field_kind({"id": "g", "type": "recaptcha"}), "recaptcha")
+        self.assertEqual(sh.field_kind({"id": "freeleech", "type": "inputbool"}), "bool")
+
+    def test_public_indexer_has_no_fillable_fields(self):
+        items = [{"id": "sitelink", "type": "inputstring", "value": "https://x/"},
+                 {"id": "info", "type": "displayinfo", "value": "hello"}]
+        self.assertEqual(sh.fillable_fields(items), [])
+
+    def test_login_indexer_fillable(self):
+        items = [{"id": "username", "type": "inputstring"},
+                 {"id": "password", "type": "password"},
+                 {"id": "sitelink", "type": "inputstring"}]
+        got = [f["id"] for f in sh.fillable_fields(items)]
+        self.assertEqual(got, ["username", "password"])
+
+    def test_build_config_body_applies_answers_without_mutating(self):
+        items = [{"id": "username", "type": "inputstring", "value": ""}]
+        out = sh.build_config_body(items, {"username": "alice"})
+        self.assertEqual(out[0]["value"], "alice")
+        self.assertEqual(items[0]["value"], "")  # original untouched
+
+    def test_parse_selection(self):
+        self.assertEqual(sh.parse_selection("1,3,5-7", 10), [0, 2, 4, 5, 6])
+        self.assertEqual(sh.parse_selection("2", 3), [1])
+        self.assertEqual(sh.parse_selection("", 3), [])
+        self.assertEqual(sh.parse_selection("99", 3), [])       # out of range ignored
+        self.assertEqual(sh.parse_selection("3-1", 5), [])      # reversed range yields nothing
+
+
 class Cli(unittest.TestCase):
     """Exercise the CLI the way install.sh calls it."""
     def _run(self, *args, **kw):
@@ -102,11 +145,11 @@ class Cli(unittest.TestCase):
             src = os.path.join(d, ".env.example")
             dest = os.path.join(d, ".env")
             with open(src, "w") as f:
-                f.write("TOLOKA_USER=\nWARP_ADDRESS_V4=172.16.0.2/32\n")
-            r = self._run("render-env", src, dest, "--set", "TOLOKA_USER=bob")
+                f.write("SITE_USER=\nWARP_ADDRESS_V4=172.16.0.2/32\n")
+            r = self._run("render-env", src, dest, "--set", "SITE_USER=bob")
             self.assertEqual(r.returncode, 0, r.stderr)
             with open(dest) as f:
-                self.assertIn("TOLOKA_USER=bob", f.read())
+                self.assertIn("SITE_USER=bob", f.read())
 
     def test_patch_jackett_cli_prints_key(self):
         with tempfile.TemporaryDirectory() as d:
