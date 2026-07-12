@@ -138,5 +138,8 @@ if (Wait-ForService -Url $TorrServerUrl -Name 'TorrServer' -TimeoutSec 10) {
 Write-Host "Linking FlareSolverr (Cloudflare bypass):" -ForegroundColor Cyan
 $fsUrl = if ($env['JACKETT_FLARESOLVERR_URL']) { $env['JACKETT_FLARESOLVERR_URL'] } else { 'http://flaresolverr:8191' }
 Set-JackettFlareSolverr -Url $fsUrl
+# Jackett may have just restarted above — wait until it serves again so callers
+# (e.g. the indexer-add step) don't hit it mid-restart.
+Wait-ForService -Url $JackettUrl -Name 'Jackett' -TimeoutSec 30 | Out-Null
 
 Write-Host "Done." -ForegroundColor Cyan

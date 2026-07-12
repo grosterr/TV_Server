@@ -243,6 +243,9 @@ if [ -n "$APIKEY" ]; then
   ok "$(t api_ok)"
   "${HELPER[@]}" render-env .env .env --set "JACKETT_APIKEY=$APIKEY"
   "${DC[@]}" -f "$COMPOSE_FILE" restart jackett >/dev/null 2>&1 || true
+  # Jackett needs a few seconds to serve again after a restart — wait so we
+  # don't hand back control (or add indexers) while it's still coming up.
+  for _ in $(seq 1 30); do curl -fsS -o /dev/null "http://127.0.0.1:9117" && break; sleep 2; done
 else
   warn "$(t api_fail)"
 fi
