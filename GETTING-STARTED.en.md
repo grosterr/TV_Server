@@ -98,7 +98,7 @@ Here you tell the server which sites to search for movies. Everything is done on
    - 💪 Thanks to the built-in FlareSolverr, even trackers with Cloudflare protection work (1337x, etc.).
 3. **Remove/edit a tracker:** on the same dashboard, next to each added tracker there are icons — trash can (remove), wrench (configure), magnifier (test).
 
-> 💡 You can automate adding private trackers and server optimization with the `configure.ps1` script — see the [technical README](README.en.md).
+> 💡 Server optimization (TorrServer cache, CORS, linking FlareSolverr) can be applied with the `configure.ps1` script — see the [technical README](README.en.md). The trackers themselves are added right here, in the Jackett web UI.
 
 ## Step 5. Watch on the PC 🍿
 
@@ -132,11 +132,15 @@ The computer and the TV must be **on the same home network** (one router/Wi-Fi).
 
 ## Step 6. Find the computer's address
 
+If you used the **installer**, it already asked **which network adapter to use** and saved the ready address together with the API key to **`lampa_settings.txt`** (in the project root) — just open it and take the values from there. In that case you can skip Step 6.
+
+Otherwise, find the address manually:
 1. In the PowerShell window, type:
    ```powershell
    ipconfig
    ```
-2. Find the **"IPv4 Address"** line — something like `192.168.1.165`.
+2. Find the **"IPv4 Address"** line of your home network — something like `192.168.1.165` or `10.0.0.5`.
+   > ⚠️ If there are several addresses, **ignore virtual adapters** (WSL, Hyper-V, vEthernet, VirtualBox). Take the one that starts with `192.168.` or `10.` and belongs to your Wi-Fi/Ethernet. That's exactly why the installer asks which adapter to pick.
 3. Write this number down. **This is your server's address** for all devices.
 
 > 💡 So the address doesn't change after a reboot, "pin" it to the computer in your router settings (Static DHCP / reservation). Not required, but convenient.
@@ -199,7 +203,7 @@ For example: `http://192.168.1.165:8090`
 ### Jackett (search)
 **Settings → Parser** → enable → enter:
 - **Link:** `http://YOUR_ADDRESS:9117` (e.g. `http://192.168.1.165:9117`)
-- **API key:** the same string from the Jackett Dashboard (Step 4).
+- **API key:** from the `lampa_settings.txt` file (or copy it from the Jackett Dashboard, Step 4).
 
 > 📌 Remember: **8090** — viewing, **9117** — search. Don't mix up the ports.
 
@@ -213,7 +217,7 @@ To make the server start together with the computer:
 - **Docker Desktop → ⚙️ Settings → General →** the **"Start Docker Desktop when you log in"** checkbox.
 - The containers have `restart: unless-stopped`, so they come up automatically.
 
-After a computer restart, run `configure.ps1` once (or check the settings) — details in the [README](README.en.md).
+After a reboot you don't need to run anything: the containers come back up on their own, and the TorrServer/Jackett settings are saved and survive the restart. (If needed, `configure.ps1` can be re-run — it's idempotent.)
 
 ---
 
