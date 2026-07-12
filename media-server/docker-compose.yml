@@ -71,7 +71,7 @@ services:
 
   # Solves Cloudflare "challenge" pages so Jackett can index protected
   # trackers (1337x, some RuTracker mirrors, etc.) — this is a big part of
-  # why aggregators like JacRed/Lampac "have more sources". Runs a headless
+  # why aggregators like JacRed "have more sources". Runs a headless
   # browser, so it wants a few hundred MB RAM.
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest

@@ -27,7 +27,7 @@
    - **Трекери:** Підтримує додавання будь-яких відкритих або закритих трекерів (наприклад: Toloka.to, ThePirateBay, 1337x).
 
 3. **FlareSolverr** (порт `8191`)
-   - **Призначення:** Обхід Cloudflare-захисту («I'm not a robot», JS-челенджі) на трекерах. Без нього Jackett не може індексувати захищені сайти (напр. 1337x) — саме ця здатність робить агрегатори на кшталт JacRed/Lampac «багатшими на джерела».
+   - **Призначення:** Обхід Cloudflare-захисту («I'm not a robot», JS-челенджі) на трекерах. Без нього Jackett не може індексувати захищені сайти (напр. 1337x) — саме ця здатність робить агрегатори на кшталт JacRed «багатшими на джерела».
    - Jackett автоматично звертається до нього для проблемних трекерів; адреса задається у `configure.ps1` / `.env` (`JACKETT_FLARESOLVERR_URL`).
 
 ---
@@ -111,7 +111,7 @@ Downloader на Samsung не працює (Tizen — не Android), тому:
 
 **TorrServer і парсер:**
 - 🗄 [Офіційний гайд встановлення TorrServer](https://telegra.ph/Ustanovka-Servera-na-vneshnee-ustrojstvo-01-24) · [група TorrServer](https://t.me/TorrServe)
-- 🔈 [Список публічних парсерів](https://t.me/lampa_group/247800) · власний парсер **JacRed** ([jacred-fdb](https://github.com/jacred-fdb/jacred)) — альтернатива Jackett, яку використовує Lampac
+- 🔈 [Список публічних парсерів](https://t.me/lampa_group/247800) · власний парсер **JacRed** ([jacred-fdb](https://github.com/jacred-fdb/jacred)) — легша альтернатива Jackett із готовим набором трекерів
 - 🧩 [Плагіни Lampa](https://t.me/lampa_plugin)
 
 **Інше:**

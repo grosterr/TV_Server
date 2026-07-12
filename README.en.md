@@ -27,7 +27,7 @@ This stack is deployed in an isolated environment using **Docker Compose** and c
    - **Trackers:** Supports adding any public or private trackers (e.g.: Toloka.to, ThePirateBay, 1337x).
 
 3. **FlareSolverr** (port `8191`)
-   - **Purpose:** Bypasses Cloudflare protection ("I'm not a robot", JS challenges) on trackers. Without it, Jackett cannot index protected sites (e.g. 1337x) — this capability is exactly what makes aggregators like JacRed/Lampac "richer in sources".
+   - **Purpose:** Bypasses Cloudflare protection ("I'm not a robot", JS challenges) on trackers. Without it, Jackett cannot index protected sites (e.g. 1337x) — this capability is exactly what makes aggregators like JacRed "richer in sources".
    - Jackett contacts it automatically for problematic trackers; the address is set in `configure.ps1` / `.env` (`JACKETT_FLARESOLVERR_URL`).
 
 ---
@@ -111,7 +111,7 @@ Downloader doesn't work on Samsung (Tizen isn't Android), so:
 
 **TorrServer and parser:**
 - 🗄 [Official TorrServer installation guide](https://telegra.ph/Ustanovka-Servera-na-vneshnee-ustrojstvo-01-24) · [TorrServer group](https://t.me/TorrServe)
-- 🔈 [List of public parsers](https://t.me/lampa_group/247800) · the custom **JacRed** parser ([jacred-fdb](https://github.com/jacred-fdb/jacred)) — an alternative to Jackett used by Lampac
+- 🔈 [List of public parsers](https://t.me/lampa_group/247800) · the custom **JacRed** parser ([jacred-fdb](https://github.com/jacred-fdb/jacred)) — a lighter alternative to Jackett with a ready-made set of trackers
 - 🧩 [Lampa plugins](https://t.me/lampa_plugin)
 
 **Other:**
