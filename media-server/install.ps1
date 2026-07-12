@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    TV_Server — guided installer (Windows).
+    Torlamp — guided installer (Windows).
 
 .DESCRIPTION
     Choose IP-hiding (WARP), then this script generates .env, brings up the
@@ -80,7 +80,7 @@ $MSG = @{
     nothing='Nothing to do.'; del_confirm="Removes containers, volumes AND data (jackett_config, torrserver_data, warp, .env). Type 'delete' to confirm"
     del_cancel='Cancelled - nothing removed.'; removing='Removing the media server...'
     removed='Removed containers, volumes and data. Re-run install to set up again.'
-    repairing='Repairing existing installation...'; cl_title='TV_Server - core (TorrServer + Jackett + FlareSolverr) is always installed'
+    repairing='Repairing existing installation...'; cl_title='Torlamp — core (TorrServer + Jackett + FlareSolverr) is always installed'
     warp_item='Hide IP for P2P (Cloudflare WARP)'; warp_gen='Generating a free Cloudflare WARP profile...'
     warp_ok='WARP profile generated.'; warp_parsefail='Could not parse WARP profile - set WARP_PRIVATE_KEY in .env manually.'
     warp_genfail='WARP profile generation failed - set WARP keys in .env later.'; starting='Starting containers ({0})...'
@@ -88,6 +88,7 @@ $MSG = @{
     idx_nopy='To add indexers, open Jackett at http://localhost:9117 (or install Python and re-run).'
     done='Done.'; repaired='Repaired.'; point='Point Lampa at your server:'; apilabel='API key'
     paste='(paste it into Lampa -> Parser/Jackett)'; ipon='IP hiding : ON'; reminder='Reminder: for WAN access, forward TCP+UDP port 42116 on your router.'
+    tagline='Fuel for your Lampa - a light local media server'
   }
   uk = @{
     lang_title='Language / Мова / Язык'; installed_title='Медіасервер уже встановлено в цій папці'
@@ -95,7 +96,7 @@ $MSG = @{
     nothing='Немає що робити.'; del_confirm="Видаляє контейнери, томи ТА дані (jackett_config, torrserver_data, warp, .env). Введіть 'delete' для підтвердження"
     del_cancel='Скасовано - нічого не видалено.'; removing='Видалення медіасервера...'
     removed='Видалено контейнери, томи й дані. Запустіть install знову для налаштування.'
-    repairing='Ремонт наявної інсталяції...'; cl_title='TV_Server - ядро (TorrServer + Jackett + FlareSolverr) ставиться завжди'
+    repairing='Ремонт наявної інсталяції...'; cl_title='Torlamp — ядро (TorrServer + Jackett + FlareSolverr) ставиться завжди'
     warp_item='Приховати IP для P2P (Cloudflare WARP)'; warp_gen='Генерація безкоштовного профілю Cloudflare WARP...'
     warp_ok='Профіль WARP згенеровано.'; warp_parsefail='Не вдалося розібрати профіль WARP - впишіть WARP_PRIVATE_KEY у .env вручну.'
     warp_genfail='Не вдалося згенерувати профіль WARP - впишіть ключі WARP у .env пізніше.'; starting='Запуск контейнерів ({0})...'
@@ -103,6 +104,7 @@ $MSG = @{
     idx_nopy='Щоб додати індексатори, відкрийте Jackett http://localhost:9117 (або встановіть Python і запустіть знову).'
     done='Готово.'; repaired='Відремонтовано.'; point='Вкажіть у Lampa адресу сервера:'; apilabel='API-ключ'
     paste='(вставте в Lampa -> Парсер/Jackett)'; ipon='Приховування IP: УВІМК'; reminder='Нагадування: для доступу з інтернету пробросьте TCP+UDP порт 42116 на роутері.'
+    tagline='Живлення для вашої Lampa - легкий локальний медіасервер'
   }
   ru = @{
     lang_title='Language / Мова / Язык'; installed_title='Медиасервер уже установлен в этой папке'
@@ -110,7 +112,7 @@ $MSG = @{
     nothing='Нечего делать.'; del_confirm="Удаляет контейнеры, тома И данные (jackett_config, torrserver_data, warp, .env). Введите 'delete' для подтверждения"
     del_cancel='Отменено - ничего не удалено.'; removing='Удаление медиасервера...'
     removed='Удалены контейнеры, тома и данные. Запустите install снова для установки.'
-    repairing='Ремонт существующей установки...'; cl_title='TV_Server - ядро (TorrServer + Jackett + FlareSolverr) ставится всегда'
+    repairing='Ремонт существующей установки...'; cl_title='Torlamp — ядро (TorrServer + Jackett + FlareSolverr) ставится всегда'
     warp_item='Скрыть IP для P2P (Cloudflare WARP)'; warp_gen='Генерация бесплатного профиля Cloudflare WARP...'
     warp_ok='Профиль WARP сгенерирован.'; warp_parsefail='Не удалось разобрать профиль WARP - впишите WARP_PRIVATE_KEY в .env вручную.'
     warp_genfail='Не удалось сгенерировать профиль WARP - впишите ключи WARP в .env позже.'; starting='Запуск контейнеров ({0})...'
@@ -118,6 +120,7 @@ $MSG = @{
     idx_nopy='Чтобы добавить индексаторы, откройте Jackett http://localhost:9117 (или установите Python и запустите снова).'
     done='Готово.'; repaired='Отремонтировано.'; point='Укажите в Lampa адрес сервера:'; apilabel='API-ключ'
     paste='(вставьте в Lampa -> Парсер/Jackett)'; ipon='Скрытие IP: ВКЛ'; reminder='Напоминание: для доступа из интернета пробросьте TCP+UDP порт 42116 на роутере.'
+    tagline='Топливо для вашей Lampa - лёгкий локальный медиасервер'
   }
 }
 function L([string]$k) { $t = $MSG[$script:Lang]; if ($t.ContainsKey($k)) { $t[$k] } else { $MSG.en[$k] } }
@@ -185,6 +188,10 @@ if ($mode -eq 'install') {
     $warpRunning = (docker ps -a --format '{{.Names}}' 2>$null) -contains 'warp'
     $wantWarp = $warpInEnv -or $warpRunning
 }
+
+# --- Banner -----------------------------------------------------------------
+Write-Host "`n  T O R L A M P" -ForegroundColor Cyan
+Write-Host "  $(L 'tagline')" -ForegroundColor DarkGray
 
 # --- Bring up the stack -----------------------------------------------------
 $composeFile = if ($wantWarp) { 'docker-compose.warp.yml' } else { 'docker-compose.yml' }

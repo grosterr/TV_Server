@@ -1,4 +1,4 @@
-# 🎬 Step-by-step "from scratch" guide
+# 🎬 Torlamp — step-by-step "from scratch" guide
 
 <p align="center">
   <a href="GETTING-STARTED.md"><img src="assets/lang-ua.svg" alt="Українська" height="28"></a>
@@ -21,7 +21,7 @@ The guide is split into two parts:
 
 Think of it as **your own Netflix that plays movies from torrents**, but with no downloading and no ads. A small "engine" runs on your computer, searching for and playing video on the fly — nothing is saved to disk.
 
-Three components:
+This bundle is called **Torlamp** and has three parts:
 - **TorrServer** — the "engine" that turns a torrent into a video stream.
 - **Jackett** — the "search engine" across torrent sites.
 - **FlareSolverr** — a helper that bypasses Cloudflare protection on trackers (so more sites work).
@@ -149,6 +149,8 @@ By default, Windows may block incoming connections from other devices. Allow the
 New-NetFirewallRule -DisplayName "MediaServer TorrServer" -Direction Inbound -LocalPort 8090 -Protocol TCP -Action Allow
 New-NetFirewallRule -DisplayName "MediaServer Jackett"    -Direction Inbound -LocalPort 9117 -Protocol TCP -Action Allow
 ```
+
+> 💡 These two ports are all you need for watching on your home network. Port **42116** (incoming P2P connections) is **optional** here: streaming works without it, but incoming peers are limited, so speeds are lower. To squeeze out maximum speed (and forward the port on your router for WAN access), see the "Speed optimization at the P2P level" section in [README](README.en.md).
 
 > How to open PowerShell as administrator: Start menu → type "PowerShell" → right-click → "Run as administrator".
 

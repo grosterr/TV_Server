@@ -1,4 +1,4 @@
-# TV_Server
+# 🪔 Torlamp
 
 <p align="center">
   <a href="README.md"><img src="assets/lang-ua.svg" alt="Українська" height="28"></a>
@@ -6,7 +6,7 @@
   <a href="README.en.md"><img src="assets/lang-en.svg" alt="English" height="28"></a>
 </p>
 
-A local media server built for streaming torrents and aggregated search. Perfectly suited for use with the **Lampa** app on Smart TV, Android TV, or PC.
+**Torlamp** is a local media server for streaming torrents and aggregated search. Perfectly suited for use with the **Lampa** app on Smart TV, Android TV, or PC. *Fuel for your Lampa.*
 
 > 🆕 **New here? Don't know anything about Docker?**
 > 👉 Start with the **[step-by-step "from scratch" guide (GETTING-STARTED)](GETTING-STARTED.en.md)** — it walks you from installing programs to a movie on your TV in plain language.
@@ -71,7 +71,7 @@ If a server is **already installed**, the installer offers **REPAIR** (re-apply 
      ```powershell
      Copy-Item .env.example .env
      ```
-   - `.env` is ready by default; the script **reads the Jackett API key itself** from `ServerConfig.json`. Adjust the TorrServer tuning values in `.env` if you want.
+   - `.env` is ready by default — adjust only the TorrServer tuning values if you want. `configure.ps1` **doesn't need** the Jackett API key: it only tunes TorrServer, enables CORS, and links FlareSolverr. You already copied the key from the web UI in Step 3 — it goes straight into Lampa. (Only the `install.bat` / `install.sh` installer reads the key automatically.)
    - Run:
      ```powershell
      ./configure.ps1

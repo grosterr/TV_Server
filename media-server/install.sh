@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  TV_Server — guided installer (Linux / NAS / Raspberry Pi)
+#  Torlamp — guided installer (Linux / NAS / Raspberry Pi)
 #
 #  Fresh install: choose IP-hiding (WARP), generate .env, bring up the stack,
 #  auto-read the Jackett API key, enable CORS + link FlareSolverr, tune
@@ -54,6 +54,7 @@ declare -A T_en=(
   [ipon]="IP hiding : ON - verify with: docker exec warp wget -qO- https://api.ipify.org"
   [reminder]="Reminder: for WAN access, forward TCP+UDP port 42116 on your router."
   [lang_prompt]="Language: [1] English  [2] Українська  [3] Русский"
+  [tagline]="Fuel for your Lampa — a light local media server"
 )
 # shellcheck disable=SC2034
 declare -A T_uk=(
@@ -79,6 +80,7 @@ declare -A T_uk=(
   [ipon]="Приховування IP: УВІМК - перевірка: docker exec warp wget -qO- https://api.ipify.org"
   [reminder]="Нагадування: для доступу з інтернету пробросьте TCP+UDP порт 42116 на роутері."
   [lang_prompt]="Мова: [1] English  [2] Українська  [3] Русский"
+  [tagline]="Живлення для вашої Lampa — легкий локальний медіасервер"
 )
 # shellcheck disable=SC2034
 declare -A T_ru=(
@@ -104,6 +106,7 @@ declare -A T_ru=(
   [ipon]="Скрытие IP: ВКЛ - проверка: docker exec warp wget -qO- https://api.ipify.org"
   [reminder]="Напоминание: для доступа из интернета пробросьте TCP+UDP порт 42116 на роутере."
   [lang_prompt]="Язык: [1] English  [2] Українська  [3] Русский"
+  [tagline]="Топливо для вашей Lampa — лёгкий локальный медиасервер"
 )
 t() { local k="$1"; local -n tbl="T_$L"; printf '%s' "${tbl[$k]:-${T_en[$k]}}"; }
 
@@ -124,12 +127,18 @@ if [ "$NONINTERACTIVE" != "1" ] && have whiptail; then USE_WHIPTAIL=1; fi
 case "${LANG_CHOICE:-${LANG:-}}" in uk*|*UA*) L=uk;; ru*|*RU*) L=ru;; *) L=en;; esac
 if [ "$NONINTERACTIVE" != "1" ]; then
   if [ "$USE_WHIPTAIL" = 1 ]; then
-    L=$(whiptail --title "TV_Server" --menu "Language / Мова / Язык" 12 50 3 \
+    L=$(whiptail --title "Torlamp" --menu "Language / Мова / Язык" 12 50 3 \
       en "English" uk "Українська" ru "Русский" 3>&1 1>&2 2>&3) || L=en
   else
     printf '%s (default %s): ' "$(t lang_prompt)" "$L"; read -r a
     case "$a" in 1) L=en;; 2) L=uk;; 3) L=ru;; esac
   fi
+fi
+
+# --- Banner -----------------------------------------------------------------
+if [ "$NONINTERACTIVE" != "1" ]; then
+  printf '\n%s  ┌─┐ T O R L A M P%s\n' "$C_CYAN" "$C_OFF"
+  printf '%s  │▓│%s %s%s%s\n\n' "$C_CYAN" "$C_OFF" "$C_DIM" "$(t tagline)" "$C_OFF"
 fi
 
 WANT_WARP="${WANT_WARP:-0}"
@@ -164,7 +173,7 @@ if is_installed; then
   if [ -z "$act" ]; then
     if [ "$NONINTERACTIVE" = "1" ]; then act=repair
     elif [ "$USE_WHIPTAIL" = "1" ]; then
-      act=$(whiptail --title "TV_Server" --menu "$(t installed_title)" 14 64 3 \
+      act=$(whiptail --title "Torlamp" --menu "$(t installed_title)" 14 64 3 \
         REPAIR "$(t d_repair)" DELETE "$(t d_delete)" QUIT "$(t d_quit)" 3>&1 1>&2 2>&3) || act=QUIT
     else
       say "$(t installed_title)"; read -r -p "$(t ask_action)" a
@@ -186,7 +195,7 @@ if [ "$MODE" = install ]; then
   if [ "$NONINTERACTIVE" = "1" ]; then
     :
   elif [ "$USE_WHIPTAIL" -eq 1 ]; then
-    chosen=$(whiptail --title "TV_Server" --checklist "$(t cl_title)" 12 66 1 \
+    chosen=$(whiptail --title "Torlamp" --checklist "$(t cl_title)" 12 66 1 \
       warp "$(t warp_item)" OFF 3>&1 1>&2 2>&3) || die "Cancelled."
     [[ "$chosen" == *warp* ]] && WANT_WARP=1
   else

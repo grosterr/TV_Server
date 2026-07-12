@@ -2,7 +2,7 @@
 
 ## v0.5.0-beta
 
-First public beta of **TV_Server** — a local media server for the **Lampa** app
+First public beta of **Torlamp** — a local media server for the **Lampa** app
 (Smart TV / Android TV / PC). It is a Docker Compose stack, so the *same* files
 run on Windows, Linux, macOS, NAS and Raspberry Pi (amd64 / arm64) — there are
 no per-OS builds. Windows users double-click `media-server/install.bat`; every
