@@ -1,5 +1,11 @@
 # TV_Server
 
+<p align="center">
+  <a href="README.md"><img src="assets/lang-ua.svg" alt="Українська" height="28"></a>
+  <a href="README.ru.md"><img src="assets/lang-ru.svg" alt="Русский (СНД)" height="28"></a>
+  <a href="README.en.md"><img src="assets/lang-en.svg" alt="English" height="28"></a>
+</p>
+
 Локальний медіасервер, розроблений для забезпечення потокового відтворення торентів та агрегованого пошуку. Ідеально підходить для використання з додатком **Lampa** на Smart TV, Android TV, або ПК.
 
 > 🆕 **Новачок? Нічого не знаєте про Docker?**

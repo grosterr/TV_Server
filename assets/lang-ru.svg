@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="28" role="img" aria-label="Русский (СНД)">
+  <title>Русский (СНД)</title>
+  <rect width="108" height="28" rx="4" fill="#6e7681"/>
+  <g transform="translate(10,6.5)">
+    <clipPath id="cis"><rect width="22" height="15" rx="2"/></clipPath>
+    <g clip-path="url(#cis)">
+      <rect width="22" height="15" fill="#0033A0"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="0.9" stroke-linecap="round">
+        <path d="M11.9 13 L11.9 8.4 Q11.9 7.2 13 6.5"/>
+        <path d="M13.5 13 L13.5 9.3 Q13.5 8.3 14.5 7.7"/>
+        <path d="M15.1 13 L15.1 10.2 Q15.1 9.4 16 8.9"/>
+        <path d="M10.1 13 L10.1 8.4 Q10.1 7.2 9 6.5"/>
+        <path d="M8.5 13 L8.5 9.3 Q8.5 8.3 7.5 7.7"/>
+        <path d="M6.9 13 L6.9 10.2 Q6.9 9.4 6 8.9"/>
+      </g>
+      <circle cx="11" cy="3.9" r="2" fill="#FECB00"/>
+    </g>
+    <rect width="22" height="15" rx="2" fill="none" stroke="#000" stroke-opacity="0.15"/>
+  </g>
+  <text x="38" y="18.5" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11" font-weight="bold" fill="#fff">РУССКИЙ</text>
+</svg>
