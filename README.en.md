@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="README.md"><img src="https://img.shields.io/badge/🇺🇦_Українська-6e7681?style=for-the-badge" alt="Українська"></a>
-  <a href="README.ru.md"><img src="https://img.shields.io/badge/🇷🇺_Русский-6e7681?style=for-the-badge" alt="Русский"></a>
+  <a href="README.ru.md"><img src="https://img.shields.io/badge/Русский_(СНД)-6e7681?style=for-the-badge" alt="Русский"></a>
   <a href="README.en.md"><img src="https://img.shields.io/badge/🇬🇧_English-1f6feb?style=for-the-badge" alt="English"></a>
 </p>
 
