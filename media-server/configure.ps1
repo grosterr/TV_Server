@@ -126,17 +126,24 @@ function Set-JackettFlareSolverr {
         return
     }
     $cfg = Get-Content -Raw $cfgPath | ConvertFrom-Json
-    if ($cfg.FlareSolverrUrl -eq $Url) {
-        Write-Host "  = FlareSolverr: already set ($Url)" -ForegroundColor DarkGray
+    # AllowCORS lets the Lampa web UI (a different origin) read Jackett's
+    # responses — without it the TV shows "parser not responding" (see README FAQ).
+    $corsOk = [bool]$cfg.AllowCORS
+    if ($cfg.FlareSolverrUrl -eq $Url -and $corsOk) {
+        Write-Host "  = FlareSolverr + CORS: already set ($Url)" -ForegroundColor DarkGray
         return
     }
     $cfg.FlareSolverrUrl = $Url
+    if (-not $corsOk) {
+        if ($cfg.PSObject.Properties.Name -contains 'AllowCORS') { $cfg.AllowCORS = $true }
+        else { $cfg | Add-Member -NotePropertyName AllowCORS -NotePropertyValue $true }
+    }
     $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $cfgPath -Encoding UTF8
     try {
         docker restart jackett | Out-Null
-        Write-Host "  + FlareSolverr: linked ($Url), Jackett restarted" -ForegroundColor Green
+        Write-Host "  + FlareSolverr linked + CORS enabled ($Url), Jackett restarted" -ForegroundColor Green
     } catch {
-        Write-Host "  + FlareSolverr: set in config — restart Jackett to apply" -ForegroundColor Green
+        Write-Host "  + FlareSolverr + CORS set in config — restart Jackett to apply" -ForegroundColor Green
     }
 }
 

@@ -34,6 +34,21 @@ This stack is deployed in an isolated environment using **Docker Compose** and c
 
 ## 🛠 How to run (Installation)
 
+### ⚡ Fast path — the installer (recommended)
+
+A single script with a **checkbox menu** brings up the stack and does all the busywork: it generates `.env`, **reads the Jackett API key for you** (no copy-paste), enables CORS and links FlareSolverr, tunes TorrServer, adds the trackers you picked, and prints ready-to-paste Lampa URLs at the end.
+
+- **Windows:** double-click **`media-server/install.bat`**.
+- **Linux / NAS / Raspberry Pi:**
+  ```bash
+  cd media-server && bash install.sh
+  ```
+
+Use arrows/space in the menu to pick what you need (IP hiding via WARP, private trackers) — that's it. The script is **idempotent**, so re-run it anytime. You only need Docker installed; the installer reminds you about router port forwarding but can't automate it.
+
+<details>
+<summary><b>Or manually, step by step ⤵️</b></summary>
+
 1. **Preparation:**
    Make sure you have [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed (if you're on Windows) or Docker + Docker Compose (if on Linux).
    **Important for autostart:** In Docker Desktop settings (Settings -> General) enable the **"Start Docker Desktop when you log in"** checkbox. Thanks to the `restart: unless-stopped` parameter, the server will automatically start together with your PC as a background service.
@@ -60,6 +75,8 @@ This stack is deployed in an isolated environment using **Docker Compose** and c
      ./configure.ps1
      ```
    The script is **idempotent** — it can be safely run repeatedly. To add a new private tracker, just add one line to the `$Trackers` array inside `configure.ps1` and the corresponding variables in `.env`.
+
+</details>
 
 > 🔒 **Security:** the `.env` file contains passwords and the API key and **does not go into git** (added to `.gitignore`). Never commit it. Public trackers (ThePirateBay, 1337x) don't require a login — they can be added with the **"+ Add indexer"** button in the Jackett web interface.
 
@@ -157,7 +174,7 @@ If the speed is low even on torrents with many seeders — the most common cause
 
 ### Hide your IP via Cloudflare WARP (without a paid VPN)
 
-If you're behind a "gray" IP (CGNAT) or just want peers to see an IP other than yours — all TorrServer traffic can be routed through the free **Cloudflare WARP** (the `warp` service based on [gluetun](https://github.com/qdm12/gluetun) in `docker-compose.yml`). Tested: P2P through the tunnel works, and speed on well-seeded torrents doesn't suffer.
+If you're behind a "gray" IP (CGNAT) or just want peers to see an IP other than yours — all TorrServer traffic can be routed through the free **Cloudflare WARP** (the `warp` service based on [gluetun](https://github.com/qdm12/gluetun) in `docker-compose.warp.yml`). The easiest way is to tick WARP in the installer; the manual way is below. Tested: P2P through the tunnel works, and speed on well-seeded torrents doesn't suffer.
 
 **What it does / doesn't do:**
 - ✅ Peers see Cloudflare's IP, not yours.
@@ -176,10 +193,10 @@ If you're behind a "gray" IP (CGNAT) or just want peers to see an IP other than 
    WARP_PRIVATE_KEY=<PrivateKey>
    WARP_ADDRESS_V4=172.16.0.2/32
    ```
-3. Bring up the stack: `docker compose up -d`
+3. Bring up the stack with the tunnel: `docker compose -f docker-compose.warp.yml up -d`
 4. Verify that the IP changed to Cloudflare: `docker exec warp wget -qO- https://api.ipify.org`
 
-**Disable the tunnel:** in `docker-compose.yml` remove `network_mode: "service:warp"` from `torrserver`, restore its own `ports:` block (8090 + 42116) and delete the `warp` service.
+**Disable the tunnel:** just run the plain stack — `docker compose up -d` (`docker-compose.yml` is already WARP-free and TorrServer publishes its ports directly). WARP is enabled only via the separate `docker-compose.warp.yml` file.
 
 > The `warp/` folder (contains account keys) and `.env` are in `.gitignore` and don't go into git.
 

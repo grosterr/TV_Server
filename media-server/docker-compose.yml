@@ -1,54 +1,31 @@
-# TorrServer performance settings (RAM cache, connection limit, peer port) are
-# applied at runtime by configure.ps1 via the TorrServer API — see README.
+# ============================================================================
+#  Core stack (no IP hiding). TorrServer publishes its own ports directly.
+#  Works with ZERO secrets — good default for a first run.
 #
-# TorrServer routes ALL its traffic through the "warp" service (Cloudflare WARP
-# via gluetun), so peers see a Cloudflare IP, not yours. To disable the tunnel:
-#   1. remove network_mode from torrserver and give it back its own `ports:`
-#   2. remove the `warp` service.
+#  Want to hide your IP for P2P via Cloudflare WARP? Use the WARP variant:
+#     docker compose -f docker-compose.warp.yml up -d
+#  The install script (install.sh / install.bat) picks the right file for you.
+#
+#  Performance tuning (RAM cache, connection limit, peer port) is applied at
+#  runtime by the installer / configure.ps1 via the TorrServer API — see README.
+# ============================================================================
 
 services:
-  # Cloudflare WARP tunnel (WireGuard) — network gateway for TorrServer.
-  warp:
-    image: qmcgaw/gluetun:latest
-    container_name: warp
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    ports:
-      - "8090:8090"           # TorrServer web UI / API (through the tunnel container)
-      - "42116:42116/tcp"     # BitTorrent peers (incoming)
-      - "42116:42116/udp"     # uTP / DHT (UDP)
-    environment:
-      - VPN_SERVICE_PROVIDER=custom
-      - VPN_TYPE=wireguard
-      - WIREGUARD_PRIVATE_KEY=${WARP_PRIVATE_KEY}
-      - WIREGUARD_ADDRESSES=${WARP_ADDRESS_V4}
-      - WIREGUARD_PUBLIC_KEY=bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=
-      - VPN_ENDPOINT_IP=162.159.192.1
-      - VPN_ENDPOINT_PORT=2408
-      - WIREGUARD_MTU=1280
-      # Let the LAN (TV) reach TorrServer and let TorrServer answer LAN peers.
-      - FIREWALL_INPUT_PORTS=8090,42116
-      - FIREWALL_OUTBOUND_SUBNETS=192.168.0.0/16
-      - TZ=Europe/Kyiv
-    restart: unless-stopped
-
   # Pinned to a specific release via ghcr (bundles a compatible binary).
   # Do NOT use yourok/torrserver:latest — its start.sh downloads
   # releases/latest at boot, and MatriX.142 has an open crash bug under load
-  # (YouROK/TorrServer#766: panics in acceptLimitClearer/deleteAllRequests).
-  # Bump TORRSERVER_VERSION in .env once #766 is fixed upstream.
+  # (YouROK/TorrServer#766). Bump TORRSERVER_VERSION in .env once #766 is fixed.
   torrserver:
     image: ghcr.io/yourok/torrserver:${TORRSERVER_VERSION:-MatriX.141.10}
     container_name: torrserver
-    network_mode: "service:warp"   # all traffic goes through WARP
+    ports:
+      - "8090:8090"           # web UI / API
+      - "42116:42116/tcp"     # BitTorrent peers (incoming)
+      - "42116:42116/udp"     # uTP / DHT (UDP)
     volumes:
-      - ./torrserver_data:/opt/ts  # config/log/torrents — survives recreation
+      - ./torrserver_data:/opt/ts   # config/log/torrents — survives recreation
     environment:
       - TZ=Europe/Kyiv
-    depends_on:
-      - warp
     restart: unless-stopped
 
   jackett:
@@ -62,9 +39,6 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/Kyiv
-      # FlareSolverr endpoint is stored in Jackett's ServerConfig.json
-      # ("FlareSolverrUrl": "http://flaresolverr:8191"). Set once in the
-      # Jackett dashboard on a fresh install, or via configure.ps1.
     depends_on:
       - flaresolverr
     restart: unless-stopped

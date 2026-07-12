@@ -1,0 +1,77 @@
+# ============================================================================
+#  WARP variant — hides your IP for P2P. TorrServer routes ALL its traffic
+#  through the "warp" service (Cloudflare WARP via gluetun), so peers see a
+#  Cloudflare IP, not yours.
+#
+#  Bring up with:
+#     docker compose -f docker-compose.warp.yml up -d
+#  (the install script does this automatically if you tick "hide IP / WARP").
+#
+#  Requires WARP_PRIVATE_KEY and WARP_ADDRESS_V4 in .env — the installer can
+#  generate them for you. For the plain (no-tunnel) stack use docker-compose.yml.
+# ============================================================================
+
+services:
+  # Cloudflare WARP tunnel (WireGuard) — network gateway for TorrServer.
+  warp:
+    image: qmcgaw/gluetun:latest
+    container_name: warp
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - "8090:8090"           # TorrServer web UI / API (through the tunnel)
+      - "42116:42116/tcp"     # BitTorrent peers (incoming)
+      - "42116:42116/udp"     # uTP / DHT (UDP)
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${WARP_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WARP_ADDRESS_V4}
+      - WIREGUARD_PUBLIC_KEY=bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=
+      - VPN_ENDPOINT_IP=162.159.192.1
+      - VPN_ENDPOINT_PORT=2408
+      - WIREGUARD_MTU=1280
+      # Let the LAN (TV) reach TorrServer and let TorrServer answer LAN peers.
+      - FIREWALL_INPUT_PORTS=8090,42116
+      - FIREWALL_OUTBOUND_SUBNETS=192.168.0.0/16
+      - TZ=Europe/Kyiv
+    restart: unless-stopped
+
+  torrserver:
+    image: ghcr.io/yourok/torrserver:${TORRSERVER_VERSION:-MatriX.141.10}
+    container_name: torrserver
+    network_mode: "service:warp"   # all traffic goes through WARP
+    volumes:
+      - ./torrserver_data:/opt/ts
+    environment:
+      - TZ=Europe/Kyiv
+    depends_on:
+      - warp
+    restart: unless-stopped
+
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    ports:
+      - "9117:9117"
+    volumes:
+      - ./jackett_config:/config
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Kyiv
+    depends_on:
+      - flaresolverr
+    restart: unless-stopped
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    ports:
+      - "8191:8191"
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Europe/Kyiv
+    restart: unless-stopped

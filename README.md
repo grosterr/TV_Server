@@ -34,6 +34,21 @@
 
 ## 🛠 Як запустити (Встановлення)
 
+### ⚡ Швидкий шлях — інсталятор (рекомендовано)
+
+Один скрипт із **меню-галочками** підніме стек і зробить усе рутинне: згенерує `.env`, **сам підхопить API-ключ Jackett** (без копіювання), увімкне CORS і під'єднає FlareSolverr, налаштує TorrServer, додасть обрані трекери й наприкінці надрукує готові посилання для Lampa.
+
+- **Windows:** двічі клацніть **`media-server/install.bat`**.
+- **Linux / NAS / Raspberry Pi:**
+  ```bash
+  cd media-server && bash install.sh
+  ```
+
+У меню стрілками/пробілом оберіть потрібне (приховування IP через WARP, приватні трекери) — і все. Скрипт **ідемпотентний**, запускайте повторно будь-коли. Потрібен лише встановлений Docker; проброс порту на роутері інсталятор нагадає, але автоматизувати не може.
+
+<details>
+<summary><b>Або вручну, покроково ⤵️</b></summary>
+
 1. **Підготовка:**
    Впевніться, що у вас встановлено [Docker Desktop](https://www.docker.com/products/docker-desktop/) (якщо ви на Windows) або Docker + Docker Compose (якщо на Linux).
    **Важливо для автозапуску:** У налаштуваннях Docker Desktop (Settings -> General) увімкніть галочку **"Start Docker Desktop when you log in"**. Завдяки параметру `restart: unless-stopped`, сервер буде автоматично запускатися разом із ПК як фонова служба.
@@ -60,6 +75,8 @@
      ./configure.ps1
      ```
    Скрипт **ідемпотентний** — його можна безпечно запускати повторно. Щоб додати новий приватний трекер, достатньо дописати один рядок у масив `$Trackers` всередині `configure.ps1` та відповідні змінні у `.env`.
+
+</details>
 
 > 🔒 **Безпека:** файл `.env` містить паролі й API-ключ і **не потрапляє в git** (додано в `.gitignore`). Ніколи не комітьте його. Публічні трекери (ThePirateBay, 1337x) не потребують логіну — їх можна додати кнопкою **"+ Add indexer"** у веб-інтерфейсі Jackett.
 
@@ -157,7 +174,7 @@ Downloader на Samsung не працює (Tizen — не Android), тому:
 
 ### Приховати IP через Cloudflare WARP (без платного VPN)
 
-Якщо ви за «сірим» IP (CGNAT) або просто хочете, щоб пири бачили не вашу IP — увесь трафік TorrServer можна завернути через безкоштовний **Cloudflare WARP** (сервіс `warp` на базі [gluetun](https://github.com/qdm12/gluetun) у `docker-compose.yml`). Перевірено: P2P крізь тунель працює, швидкість на добре роздаваних торентах не страждає.
+Якщо ви за «сірим» IP (CGNAT) або просто хочете, щоб пири бачили не вашу IP — увесь трафік TorrServer можна завернути через безкоштовний **Cloudflare WARP** (сервіс `warp` на базі [gluetun](https://github.com/qdm12/gluetun) у `docker-compose.warp.yml`). Найпростіше — обрати WARP в інсталяторі; нижче — ручний спосіб. Перевірено: P2P крізь тунель працює, швидкість на добре роздаваних торентах не страждає.
 
 **Що дає / чого не дає:**
 - ✅ Пири бачать IP Cloudflare, а не вашу.
@@ -176,10 +193,10 @@ Downloader на Samsung не працює (Tizen — не Android), тому:
    WARP_PRIVATE_KEY=<PrivateKey>
    WARP_ADDRESS_V4=172.16.0.2/32
    ```
-3. Підніміть стек: `docker compose up -d`
+3. Підніміть стек із тунелем: `docker compose -f docker-compose.warp.yml up -d`
 4. Перевірте, що IP змінився на Cloudflare: `docker exec warp wget -qO- https://api.ipify.org`
 
-**Вимкнути тунель:** у `docker-compose.yml` приберіть `network_mode: "service:warp"` у `torrserver`, поверніть йому власний блок `ports:` (8090 + 42116) і видаліть сервіс `warp`.
+**Вимкнути тунель:** просто запускайте звичайний стек — `docker compose up -d` (файл `docker-compose.yml` уже без WARP, TorrServer публікує порти напряму). WARP вмикається лише окремим файлом `docker-compose.warp.yml`.
 
 > Папка `warp/` (містить ключі акаунта) і `.env` — у `.gitignore`, у git не потрапляють.
 
