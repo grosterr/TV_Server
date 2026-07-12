@@ -100,6 +100,7 @@ class MergeTorrServer(unittest.TestCase):
         self.assertEqual(merged["CacheSize"], 2147483648)
         self.assertEqual(merged["ConnectionsLimit"], 1000)
         self.assertEqual(merged["PeersListenPort"], 42116)
+        self.assertEqual(merged["PreloadCache"], 10)     # default 10% preload
         self.assertTrue(merged["SomeOtherFlag"])        # preserved
         self.assertEqual(merged["ReaderReadAHead"], 95)  # preserved
         self.assertIsNot(merged, current)                # no mutation of input

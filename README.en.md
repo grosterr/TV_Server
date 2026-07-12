@@ -19,7 +19,7 @@ This stack is deployed in an isolated environment using **Docker Compose** and c
 
 1. **TorrServer** (port `8090`)
    - **Purpose:** Streaming torrents without needing to download the entire file to your hard drive first.
-   - **Optimization:** The `configure.ps1` script enables an extended in-RAM cache (2 GB) and raises the P2P connection limit (up to 1000) for maximum bandwidth utilization (up to 300+ Mbit/s). Values are configurable in the `.env` file.
+   - **Optimization:** The `configure.ps1` script enables an extended in-RAM cache (2 GB), a 10% preload buffer, and raises the P2P connection limit (up to 1000) for maximum bandwidth utilization (up to 300+ Mbit/s). Values are configurable in the `.env` file.
    - Data is cached exclusively in RAM and deleted after viewing.
 
 2. **Jackett** (port `9117`)

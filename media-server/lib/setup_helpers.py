@@ -20,6 +20,7 @@ ENV_KEYS = ("JACKETT_APIKEY", "WARP_PRIVATE_KEY", "WARP_ADDRESS_V4")
 TORRSERVER_DEFAULTS = dict(
     CacheSize=2147483648, ConnectionsLimit=1000,
     PeersListenPort=42116, TorrentDisconnectTimeout=3600,
+    PreloadCache=10,  # % of cache preloaded before playback (quick start)
 )
 
 
@@ -130,7 +131,7 @@ def _cmd_tune_torrserver(args) -> int:
     except Exception as exc:  # noqa: BLE001 — installer prints a soft warning
         print(f"unreachable: {exc}", file=sys.stderr)
         return 1
-    print("  + cache 2 GiB, 1000 connections, peer port 42116")
+    print("  + cache 2 GiB, 1000 connections, peer port 42116, preload 10%")
     return 0
 
 

@@ -62,7 +62,7 @@ function Wait-ForService {
 }
 
 function Set-TorrServerTuning {
-    param([string]$TorrServerUrl, [long]$CacheSize, [int]$ConnLimit, [int]$PeerPort, [int]$DisconnectTimeout)
+    param([string]$TorrServerUrl, [long]$CacheSize, [int]$ConnLimit, [int]$PeerPort, [int]$DisconnectTimeout, [int]$Preload)
     try {
         $current = Invoke-RestMethod -Uri "$TorrServerUrl/settings" -Method Post `
             -ContentType 'application/json' -Body (@{ action = 'get' } | ConvertTo-Json)
@@ -74,11 +74,12 @@ function Set-TorrServerTuning {
     $current.ConnectionsLimit         = $ConnLimit
     $current.PeersListenPort          = $PeerPort
     $current.TorrentDisconnectTimeout = $DisconnectTimeout
+    $current.PreloadCache             = $Preload
     try {
         Invoke-RestMethod -Uri "$TorrServerUrl/settings" -Method Post -ContentType 'application/json' `
             -Body (@{ action = 'set'; sets = $current } | ConvertTo-Json -Depth 5) | Out-Null
         $gib = [math]::Round($CacheSize / 1GB, 2)
-        Write-Host "  + TorrServer: cache ${gib} GiB, $ConnLimit connections, peer port $PeerPort, disconnect timeout ${DisconnectTimeout}s" -ForegroundColor Green
+        Write-Host "  + TorrServer: cache ${gib} GiB, $ConnLimit connections, peer port $PeerPort, preload ${Preload}%, disconnect timeout ${DisconnectTimeout}s" -ForegroundColor Green
     } catch {
         Write-Host "  ! TorrServer tuning failed -- $($_.Exception.Message)" -ForegroundColor Red
     }
@@ -151,8 +152,9 @@ $cache = if ($env['TORRSERVER_CACHE_SIZE']) { [long]$env['TORRSERVER_CACHE_SIZE'
 $conn  = if ($env['TORRSERVER_CONN_LIMIT'])  { [int]$env['TORRSERVER_CONN_LIMIT'] }   else { 1000 }
 $port  = if ($env['TORRSERVER_PEER_PORT'])   { [int]$env['TORRSERVER_PEER_PORT'] }    else { 42116 }
 $dct   = if ($env['TORRSERVER_DISCONNECT_TIMEOUT']) { [int]$env['TORRSERVER_DISCONNECT_TIMEOUT'] } else { 3600 }
+$pre   = if ($env['TORRSERVER_PRELOAD'])     { [int]$env['TORRSERVER_PRELOAD'] }     else { 10 }
 if (Wait-ForService -Url $TorrServerUrl -Name 'TorrServer' -TimeoutSec 10) {
-    Set-TorrServerTuning -TorrServerUrl $TorrServerUrl -CacheSize $cache -ConnLimit $conn -PeerPort $port -DisconnectTimeout $dct
+    Set-TorrServerTuning -TorrServerUrl $TorrServerUrl -CacheSize $cache -ConnLimit $conn -PeerPort $port -DisconnectTimeout $dct -Preload $pre
 } else {
     Write-Host "  ! TorrServer not reachable at $TorrServerUrl -- skipped" -ForegroundColor Yellow
 }

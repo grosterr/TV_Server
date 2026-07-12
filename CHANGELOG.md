@@ -24,6 +24,9 @@ consolidated and hardened. Same three-service stack and ports; still no backend.
   (`LocalBindAddress=*`, `AllowExternal`) so Docker port-mapping works from the host/TV.
 - **WARP REPAIR fix** — regenerate the WARP key on REPAIR if it's missing, so the
   `warp` container (and TorrServer behind it) no longer crash-loops.
+- **TorrServer preload default** — the installer now sets a **10%** preload buffer
+  (fast playback start; buffer fills while watching). Tune via `TORRSERVER_PRELOAD`
+  or the TorrServer panel at `:8090`.
 - **Doc accuracy fixes** — `configure.ps1` / API-key note, firewall port `42116`,
   `JACKETT_APIKEY` clarified.
 - **Installer robustness** — wait for Jackett to be ready again after its

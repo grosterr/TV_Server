@@ -236,6 +236,17 @@ After a reboot you don't need to run anything: the containers come back up on th
 
 ---
 
+## ⚙️ (Optional) Cache and preload — the TorrServer panel
+
+TorrServer has its own panel: **[http://localhost:8090](http://localhost:8090)** (or `http://YOUR_ADDRESS:8090` from another device) → **Settings**. The installer already sets sensible values, but you can tweak them:
+
+- **Cache** — how much video is held in **RAM**. Default **2 GB**. More = smoother at high bitrates (4K), but more RAM. On weak devices (Raspberry Pi, 2–4 GB RAM) lower it to 512 MB – 1 GB.
+- **Preload** — what percentage of the cache is loaded **ahead of time** before playback starts. Default **10%**: quick start, and the buffer keeps filling while you watch. A higher percentage (e.g. 50%) gives a smoother start on poorly-seeded torrents, but you wait longer before play and use more RAM.
+
+> 💡 Changed something — click **Save**. No reinstall needed: the settings persist and survive a restart. The defaults are set by the installer via `.env` (`TORRSERVER_CACHE_SIZE`, `TORRSERVER_PRELOAD`) — change them there to make them permanent.
+
+---
+
 ## 🔒 I want to hide my IP address
 
 The project can route torrent traffic through the free **Cloudflare WARP** tunnel so other participants see an address other than yours. Optional, but available. The easiest way is to enable WARP with a checkbox in the installer (see "Easiest path" at the start of Part 1); details are in the "WARP" section of the [README](README.en.md).
