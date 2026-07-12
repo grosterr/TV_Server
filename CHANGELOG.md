@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.5.1-beta
+
+Rebrand and packaging polish over v0.5.0-beta — no breaking changes; the stack,
+ports and configuration are identical.
+
+### Changes
+- **Rebranded to Torlamp** (Torrent + Lampa) across all docs and installers,
+  with a localized tagline and a start-up banner. Service/container names and the
+  `media-server/` folder are unchanged.
+- **Root-level installer launchers** — `install.bat` / `install.sh` now sit at the
+  top of the project (and this ZIP) and delegate to the real installer in
+  `media-server/`. No more digging through folders.
+- **Doc accuracy fixes** — corrected the manual-setup note about `configure.ps1`
+  and the Jackett API key; added the optional P2P port `42116` to the firewall
+  step; clarified that `JACKETT_APIKEY` in `.env` is informational.
+- **Installer robustness** — wait for Jackett to be ready again after its
+  post-config restart, so the indexer step (and CI) no longer races it.
+- **Repo hygiene** — enforce LF line endings for shell scripts via `.gitattributes`.
+
+### Install
+- **Windows:** download this release, unzip, double-click `install.bat`.
+- **Linux / macOS / NAS / Raspberry Pi:** `bash install.sh` from the unzipped folder.
+
 ## v0.5.0-beta
 
 First public beta of **Torlamp** — a local media server for the **Lampa** app
