@@ -4,17 +4,16 @@
   <g transform="translate(10,6.5)">
     <clipPath id="cis"><rect width="22" height="15" rx="2"/></clipPath>
     <g clip-path="url(#cis)">
-      <rect width="22" height="15" fill="#4C9BE0"/>
-      <g transform="translate(11,7.5)">
-        <path d="M0,-7 Q4.6,0 0,7 Q-4.6,0 0,-7 Z" fill="#E8A93A"/>
-        <g fill="none" stroke="#4C9BE0" stroke-width="0.7" stroke-linecap="round">
-          <path d="M0,-6.4 L0,6.4"/>
-          <path d="M0,-6 Q1.7,0 0,6"/>
-          <path d="M0,-6 Q-1.7,0 0,6"/>
-          <path d="M0,-5.4 Q3.2,0 0,5.4"/>
-          <path d="M0,-5.4 Q-3.2,0 0,5.4"/>
-        </g>
+      <rect width="22" height="15" fill="#0033A0"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="0.9" stroke-linecap="round">
+        <path d="M11.9 13 L11.9 8.4 Q11.9 7.2 13 6.5"/>
+        <path d="M13.5 13 L13.5 9.3 Q13.5 8.3 14.5 7.7"/>
+        <path d="M15.1 13 L15.1 10.2 Q15.1 9.4 16 8.9"/>
+        <path d="M10.1 13 L10.1 8.4 Q10.1 7.2 9 6.5"/>
+        <path d="M8.5 13 L8.5 9.3 Q8.5 8.3 7.5 7.7"/>
+        <path d="M6.9 13 L6.9 10.2 Q6.9 9.4 6 8.9"/>
       </g>
+      <circle cx="11" cy="3.9" r="2" fill="#FECB00"/>
     </g>
     <rect width="22" height="15" rx="2" fill="none" stroke="#000" stroke-opacity="0.15"/>
   </g>
