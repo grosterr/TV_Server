@@ -61,6 +61,8 @@
 
 ## 📺 Підключення до Lampa
 
+> ℹ️ **Про Lampa (офіційний FAQ розробників):** Lampa — це не готовий продукт, а **«конструктор»**, який треба самостійно налаштувати (вказати ваш TorrServer і парсер). Офіційні застосунки: [Lampa Desktop](https://github.com/Kolovatoff/lampa-desktop/releases) (ПК), [lampa-app/LAMPA](https://github.com/lampa-app/LAMPA/releases) (Android/TV), [lampa.mx](https://lampa.mx) (веб), [yumata/lampa](https://github.com/yumata/lampa) (самохостинг). Спільнота: [t.me/lampa_group](https://t.me/lampa_group).
+
 Для того, щоб Lampa побачила ваш новий сервер і почала шукати та відтворювати фільми, виконайте наступні кроки:
 
 ### Варіант А: Smart TV (Samsung Tizen) через Media Station X
