@@ -75,8 +75,13 @@ function Set-EnvValue { param([string]$Path,[string]$Key,[string]$Value)
 
 # --- Preflight --------------------------------------------------------------
 if (-not (Test-Cmd docker)) { throw "Docker not found. Install Docker Desktop: https://www.docker.com/products/docker-desktop/" }
-try { docker compose version *> $null; $DC = @('docker','compose') }
-catch { if (Test-Cmd docker-compose) { $DC = @('docker-compose') } else { throw "Docker Compose not found." } }
+# Native commands don't throw — check $LASTEXITCODE, not try/catch.
+docker compose version *> $null
+if ($LASTEXITCODE -eq 0)          { $DC = @('docker','compose') }
+elseif (Test-Cmd docker-compose)  { $DC = @('docker-compose') }
+else { throw "Docker Compose not found." }
+docker info *> $null
+if ($LASTEXITCODE -ne 0) { throw "Docker is installed but the daemon isn't running. Start Docker Desktop and retry." }
 
 # --- Component selection ----------------------------------------------------
 $menu = @( [pscustomobject]@{ Label = 'Hide IP for P2P (Cloudflare WARP)'; Checked = $false; Tag = 'warp' } )

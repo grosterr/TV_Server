@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint (shell / PowerShell / python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck + bash syntax
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          bash -n media-server/install.sh
+          shellcheck --severity=warning media-server/install.sh
+
+      - name: python compile + import
+        run: |
+          python3 -m py_compile media-server/lib/setup_helpers.py
+          python3 media-server/lib/setup_helpers.py --help > /dev/null
+
+      - name: PSScriptAnalyzer (errors only)
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          $issues = Invoke-ScriptAnalyzer -Path media-server -Recurse -Severity Error
+          $issues | Format-Table -AutoSize
+          if ($issues.Count) { throw "PSScriptAnalyzer found $($issues.Count) error(s)." }
+
+  unit:
+    name: Unit tests (setup_helpers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run unittest
+        run: python3 -m unittest discover -s media-server/tests -v
+
+  compose-validate:
+    name: Validate docker-compose files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core compose
+        working-directory: media-server
+        run: docker compose -f docker-compose.yml config > /dev/null
+      - name: WARP compose
+        working-directory: media-server
+        env:
+          WARP_PRIVATE_KEY: dummy
+          WARP_ADDRESS_V4: 172.16.0.2/32
+        run: docker compose -f docker-compose.warp.yml config > /dev/null
+
+  integration:
+    name: End-to-end core stack (non-interactive install.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run installer (core, non-interactive)
+        working-directory: media-server
+        env:
+          NONINTERACTIVE: '1'
+          WANT_WARP: '0'
+        run: bash install.sh
+
+      - name: Assert the stack came up and self-configured
+        working-directory: media-server
+        run: |
+          set -euo pipefail
+          echo "Containers:"; docker ps --format '  {{.Names}} ({{.Status}})'
+          # Jackett answers on 9117
+          curl -fsS -o /dev/null http://127.0.0.1:9117
+          # API key was auto-written into .env
+          grep -Eq '^JACKETT_APIKEY=.+' .env || { echo "API key not written to .env"; exit 1; }
+          # CORS was enabled in Jackett's config
+          python3 - <<'PY'
+          import json
+          cfg = json.load(open("jackett_config/Jackett/ServerConfig.json", encoding="utf-8-sig"))
+          assert cfg.get("AllowCORS") is True, "AllowCORS not enabled"
+          assert cfg.get("FlareSolverrUrl") == "http://flaresolverr:8191", "FlareSolverr not linked"
+          print("OK: CORS on, FlareSolverr linked, key =", cfg.get("APIKey","")[:6] + "...")
+          PY
+
+      - name: Re-run is idempotent
+        working-directory: media-server
+        env:
+          NONINTERACTIVE: '1'
+          WANT_WARP: '0'
+        run: bash install.sh
+
+      - name: Dump logs on failure
+        if: failure()
+        working-directory: media-server
+        run: docker compose -f docker-compose.yml logs --tail 100
+
+      - name: Tear down
+        if: always()
+        working-directory: media-server
+        run: docker compose -f docker-compose.yml down -v

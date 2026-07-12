@@ -13,10 +13,17 @@
 #
 #  Usage:  bash install.sh        (run from the media-server/ folder)
 #  Safe to re-run — it's idempotent.
+#
+#  Non-interactive (CI / automation): set NONINTERACTIVE=1 and drive it via env:
+#    NONINTERACTIVE=1 WANT_WARP=0 SELECT_TRACKERS="toloka" \
+#      TOLOKA_USER=me TOLOKA_PASS=secret bash install.sh
 # ============================================================================
-set -euo pipefail
+set -Eeuo pipefail
+trap 'printf "\e[31mInstaller aborted (line %s).\e[0m\n" "$LINENO" >&2' ERR
 
-cd "$(dirname "$(readlink -f "$0")")"
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
+
+HELPER=(python3 lib/setup_helpers.py)
 
 # --- Tracker registry (mirror of configure.ps1) -----------------------------
 # tag|Label|site|USER_VAR|PASS_VAR
@@ -34,7 +41,9 @@ die()  { printf '%s%s%s\n' "$C_RED" "$*" "$C_OFF" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 # --- Preflight --------------------------------------------------------------
-have docker || die "Docker not found. Install Docker first: https://docs.docker.com/engine/install/"
+have docker  || die "Docker not found. Install Docker first: https://docs.docker.com/engine/install/"
+have curl    || die "curl not found — needed for setup. Install it (e.g. apt install curl)."
+have python3 || die "python3 not found — needed for setup. Install it (e.g. apt install python3)."
 if docker compose version >/dev/null 2>&1; then
   DC=(docker compose)
 elif have docker-compose; then
@@ -42,16 +51,20 @@ elif have docker-compose; then
 else
   die "Docker Compose not found. Install the compose plugin: https://docs.docker.com/compose/install/"
 fi
-have python3 || die "python3 not found — needed for API setup. Install it (e.g. apt install python3)."
+docker info >/dev/null 2>&1 || die "Docker is installed but the daemon isn't running. Start Docker and retry."
 
+NONINTERACTIVE="${NONINTERACTIVE:-0}"
 USE_WHIPTAIL=0
-if have whiptail; then USE_WHIPTAIL=1; fi
+if [ "$NONINTERACTIVE" != "1" ] && have whiptail; then USE_WHIPTAIL=1; fi
 
 # --- Component selection ----------------------------------------------------
-WANT_WARP=0
+WANT_WARP="${WANT_WARP:-0}"
 declare -a SELECTED_TRACKERS=()
 
-if [ "$USE_WHIPTAIL" -eq 1 ]; then
+if [ "$NONINTERACTIVE" = "1" ]; then
+  IFS=', ' read -r -a SELECTED_TRACKERS <<<"${SELECT_TRACKERS:-}"
+  say "Non-interactive install (WARP=$WANT_WARP, trackers='${SELECT_TRACKERS:-}')."
+elif [ "$USE_WHIPTAIL" -eq 1 ]; then
   items=( "warp" "Hide IP for P2P (Cloudflare WARP)" "OFF" )
   for t in "${TRACKERS[@]}"; do IFS='|' read -r tag label _ _ _ <<<"$t"; items+=( "$tag" "$label (private tracker)" "OFF" ); done
   chosen=$(whiptail --title "TV_Server installer" --checklist \
@@ -72,29 +85,26 @@ fi
 
 # --- Collect credentials ----------------------------------------------------
 declare -A CRED
-ask_secret() { # prompt -> echoes value
-  local prompt="$1" val
+ask_secret() { local prompt="$1" val
   if [ "$USE_WHIPTAIL" -eq 1 ]; then
     val=$(whiptail --title "TV_Server installer" --passwordbox "$prompt" 9 60 3>&1 1>&2 2>&3) || val=""
-  else
-    read -r -s -p "$prompt " val; echo >&2
-  fi
+  else read -r -s -p "$prompt " val; echo >&2; fi
   printf '%s' "$val"
 }
-ask_text() {
-  local prompt="$1" val
+ask_text() { local prompt="$1" val
   if [ "$USE_WHIPTAIL" -eq 1 ]; then
     val=$(whiptail --title "TV_Server installer" --inputbox "$prompt" 9 60 3>&1 1>&2 2>&3) || val=""
-  else
-    read -r -p "$prompt " val
-  fi
+  else read -r -p "$prompt " val; fi
   printf '%s' "$val"
 }
 
 for t in "${TRACKERS[@]}"; do
   IFS='|' read -r tag label _ uvar pvar <<<"$t"
   for s in "${SELECTED_TRACKERS[@]:-}"; do
-    if [ "$s" = "$tag" ]; then
+    [ "$s" = "$tag" ] || continue
+    if [ "$NONINTERACTIVE" = "1" ]; then
+      CRED[$uvar]="${!uvar:-}"; CRED[$pvar]="${!pvar:-}"
+    else
       CRED[$uvar]=$(ask_text "$label — username / e-mail:")
       CRED[$pvar]=$(ask_secret "$label — password:")
     fi
@@ -102,8 +112,8 @@ for t in "${TRACKERS[@]}"; do
 done
 
 # --- WARP profile -----------------------------------------------------------
-WARP_KEY=""; WARP_ADDR="172.16.0.2/32"
-if [ "$WANT_WARP" -eq 1 ]; then
+WARP_KEY="${WARP_PRIVATE_KEY:-}"; WARP_ADDR="${WARP_ADDRESS_V4:-172.16.0.2/32}"
+if [ "$WANT_WARP" -eq 1 ] && [ -z "$WARP_KEY" ]; then
   say "Generating a free Cloudflare WARP profile..."
   if profile=$(docker run --rm alpine sh -c \
       'apk add --no-cache curl >/dev/null 2>&1 && curl -sL -o /wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x /wgcf && cd /tmp && /wgcf register --accept-tos >/dev/null 2>&1 && /wgcf generate >/dev/null 2>&1 && cat wgcf-profile.conf' 2>/dev/null); then
@@ -117,33 +127,12 @@ fi
 
 # --- Write .env -------------------------------------------------------------
 say "Writing .env..."
-export WARP_KEY WARP_ADDR
-CRED_TOLOKA_USER="${CRED[TOLOKA_USER]:-}" CRED_TOLOKA_PASS="${CRED[TOLOKA_PASS]:-}" \
-CRED_RUTRACKER_USER="${CRED[RUTRACKER_USER]:-}" CRED_RUTRACKER_PASS="${CRED[RUTRACKER_PASS]:-}" \
-python3 - <<'PY'
-import os, re
-src = ".env" if os.path.exists(".env") else ".env.example"
-with open(src, encoding="utf-8") as f:
-    text = f.read()
-over = {
-    "TOLOKA_USER": os.environ.get("CRED_TOLOKA_USER",""),
-    "TOLOKA_PASS": os.environ.get("CRED_TOLOKA_PASS",""),
-    "RUTRACKER_USER": os.environ.get("CRED_RUTRACKER_USER",""),
-    "RUTRACKER_PASS": os.environ.get("CRED_RUTRACKER_PASS",""),
-    "WARP_PRIVATE_KEY": os.environ.get("WARP_KEY",""),
-    "WARP_ADDRESS_V4": os.environ.get("WARP_ADDR","") or "172.16.0.2/32",
-}
-for k, v in over.items():
-    if v == "" and re.search(rf'(?m)^{k}=.+', text):
-        continue  # don't wipe an existing value with a blank answer
-    if re.search(rf'(?m)^{k}=', text):
-        text = re.sub(rf'(?m)^{k}=.*$', f'{k}={v}', text)
-    else:
-        text += f'\n{k}={v}\n'
-with open(".env", "w", encoding="utf-8") as f:
-    f.write(text)
-print("  .env ready")
-PY
+env_src=".env"; [ -f .env ] || env_src=".env.example"
+"${HELPER[@]}" render-env "$env_src" .env \
+  --set "TOLOKA_USER=${CRED[TOLOKA_USER]:-}"       --set "TOLOKA_PASS=${CRED[TOLOKA_PASS]:-}" \
+  --set "RUTRACKER_USER=${CRED[RUTRACKER_USER]:-}" --set "RUTRACKER_PASS=${CRED[RUTRACKER_PASS]:-}" \
+  --set "WARP_PRIVATE_KEY=${WARP_KEY}"             --set "WARP_ADDRESS_V4=${WARP_ADDR:-172.16.0.2/32}"
+ok ".env ready"
 
 # --- Bring up the stack -----------------------------------------------------
 COMPOSE_FILE="docker-compose.yml"
@@ -153,41 +142,16 @@ say "Starting containers ($COMPOSE_FILE)..."
 
 # --- Wait for Jackett -------------------------------------------------------
 say "Waiting for Jackett..."
-for _ in $(seq 1 30); do
-  if curl -fsS -o /dev/null "http://127.0.0.1:9117"; then break; fi
-  sleep 2
-done
-
+for _ in $(seq 1 30); do curl -fsS -o /dev/null "http://127.0.0.1:9117" && break; sleep 2; done
 CFG="jackett_config/Jackett/ServerConfig.json"
 for _ in $(seq 1 15); do [ -f "$CFG" ] && break; sleep 2; done
 
 # --- Auto-read API key + patch CORS/FlareSolverr ----------------------------
 say "Configuring Jackett..."
-APIKEY=$(FS_URL="http://flaresolverr:8191" python3 - "$CFG" <<'PY'
-import json, os, sys
-path = sys.argv[1]
-try:
-    with open(path, encoding="utf-8-sig") as f: cfg = json.load(f)
-except Exception:
-    print(""); sys.exit(0)
-changed = False
-if not cfg.get("AllowCORS"): cfg["AllowCORS"] = True; changed = True
-if cfg.get("FlareSolverrUrl") != os.environ["FS_URL"]:
-    cfg["FlareSolverrUrl"] = os.environ["FS_URL"]; changed = True
-if changed:
-    with open(path, "w", encoding="utf-8") as f: json.dump(cfg, f, indent=2)
-print(cfg.get("APIKey",""))
-PY
-) || APIKEY=""
+APIKEY=$("${HELPER[@]}" patch-jackett "$CFG" "http://flaresolverr:8191") || APIKEY=""
 if [ -n "$APIKEY" ]; then
   ok "API key read automatically; CORS + FlareSolverr linked."
-  python3 - "$APIKEY" <<'PY'
-import os, re, sys
-key = sys.argv[1]
-with open(".env", encoding="utf-8") as f: t = f.read()
-t = re.sub(r'(?m)^JACKETT_APIKEY=.*$', f'JACKETT_APIKEY={key}', t) if re.search(r'(?m)^JACKETT_APIKEY=', t) else t + f'\nJACKETT_APIKEY={key}\n'
-open(".env","w",encoding="utf-8").write(t)
-PY
+  "${HELPER[@]}" render-env .env .env --set "JACKETT_APIKEY=$APIKEY"
   "${DC[@]}" -f "$COMPOSE_FILE" restart jackett >/dev/null 2>&1 || true
 else
   warn "Could not read Jackett API key yet — open http://localhost:9117 and re-run to finish tracker setup."
@@ -195,22 +159,10 @@ fi
 
 # --- Tune TorrServer --------------------------------------------------------
 say "Tuning TorrServer..."
-python3 - <<'PY' || echo "  ! TorrServer not reachable yet — re-run later to tune."
-import json, urllib.request
-base = "http://127.0.0.1:8090"
-def call(path, payload):
-    req = urllib.request.Request(base+path, data=json.dumps(payload).encode(),
-                                 headers={"Content-Type":"application/json"})
-    return urllib.request.urlopen(req, timeout=8)
-cur = json.load(call("/settings", {"action":"get"}))
-cur.update(CacheSize=2147483648, ConnectionsLimit=1000,
-           PeersListenPort=42116, TorrentDisconnectTimeout=3600)
-call("/settings", {"action":"set","sets":cur}).read()
-print("  + cache 2 GiB, 1000 connections, peer port 42116")
-PY
+"${HELPER[@]}" tune-torrserver "http://127.0.0.1:8090" || warn "TorrServer not reachable yet — re-run later to tune."
 
 # --- Configure selected trackers -------------------------------------------
-if [ -n "$APIKEY" ] && [ "${#SELECTED_TRACKERS[@]:-0}" -gt 0 ]; then
+if [ -n "$APIKEY" ] && [ "${#SELECTED_TRACKERS[@]}" -gt 0 ]; then
   say "Adding trackers to Jackett..."
   for t in "${TRACKERS[@]}"; do
     IFS='|' read -r tag label site uvar pvar <<<"$t"
