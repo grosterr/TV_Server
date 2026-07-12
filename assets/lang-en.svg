@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="28" role="img" aria-label="English">
+  <title>English</title>
+  <rect width="100" height="28" rx="4" fill="#6e7681"/>
+  <svg x="10" y="6.5" width="22" height="15" viewBox="0 0 60 30">
+    <clipPath id="uk"><rect width="60" height="30" rx="3"/></clipPath>
+    <g clip-path="url(#uk)">
+      <rect width="60" height="30" fill="#012169"/>
+      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/>
+      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" stroke-width="2"/>
+      <path d="M30,0 V30 M0,15 H60" stroke="#fff" stroke-width="10"/>
+      <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" stroke-width="6"/>
+    </g>
+    <rect width="60" height="30" rx="3" fill="none" stroke="#000" stroke-opacity="0.15"/>
+  </svg>
+  <text x="38" y="18.5" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11" font-weight="bold" fill="#fff">ENGLISH</text>
+</svg>

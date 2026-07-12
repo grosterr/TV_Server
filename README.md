@@ -1,9 +1,9 @@
 # TV_Server
 
 <p align="center">
-  <a href="README.md"><img src="https://img.shields.io/badge/🇺🇦_Українська-1f6feb?style=for-the-badge" alt="Українська"></a>
-  <a href="README.ru.md"><img src="https://img.shields.io/badge/Русский_(СНД)-6e7681?style=for-the-badge" alt="Русский"></a>
-  <a href="README.en.md"><img src="https://img.shields.io/badge/🇬🇧_English-6e7681?style=for-the-badge" alt="English"></a>
+  <a href="README.md"><img src="assets/lang-ua.svg" alt="Українська" height="28"></a>
+  <a href="README.ru.md"><img src="assets/lang-ru.svg" alt="Русский (СНД)" height="28"></a>
+  <a href="README.en.md"><img src="assets/lang-en.svg" alt="English" height="28"></a>
 </p>
 
 Локальний медіасервер, розроблений для забезпечення потокового відтворення торентів та агрегованого пошуку. Ідеально підходить для використання з додатком **Lampa** на Smart TV, Android TV, або ПК.
