@@ -55,8 +55,8 @@ You control everything through the **Lampa** app — a nice catalog with posters
 > 🎯 Goal of this part: install everything and watch movies **on this same computer**. No network setup — everything via the `localhost` address (that is, "this computer").
 
 > ⚡ **Easiest path (recommended):** do only **Step 1** (Docker) and **Step 2** (download), then run the installer — it does Steps 3–4 for you:
-> - **Windows:** in the `media-server` folder, double-click **`install.bat`**.
-> - **Linux / Mac:** `cd media-server && bash install.sh`
+> - **Windows:** double-click **`install.bat`** in the project root.
+> - **Linux / Mac:** from the project root — `bash install.sh`
 >
 > The installer asks for a **language** (English / Українська / Русский), optionally enables IP hiding (WARP), brings up the server, configures Jackett, **reads the API key for you**, and offers to **add search indexers straight from Jackett** (public ones instantly, private ones with login/captcha). It prints the key at the end — copy it for Step 5 and jump straight there. If a server is already installed, you get a **REPAIR / DELETE / QUIT** choice. Want full manual control — do Steps 3–4 below.
 

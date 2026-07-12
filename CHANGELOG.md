@@ -5,8 +5,8 @@
 First public beta of **Torlamp** — a local media server for the **Lampa** app
 (Smart TV / Android TV / PC). It is a Docker Compose stack, so the *same* files
 run on Windows, Linux, macOS, NAS and Raspberry Pi (amd64 / arm64) — there are
-no per-OS builds. Windows users double-click `media-server/install.bat`; every
-other platform runs `bash media-server/install.sh`.
+no per-OS builds. Windows users double-click `install.bat` in the project root;
+every other platform runs `bash install.sh` from the root.
 
 ### Highlights
 - **Guided installer** — one step brings up the stack, generates `.env`,
@@ -25,8 +25,8 @@ other platform runs `bash media-server/install.sh`.
   tests, `docker compose config` validation, and a real end-to-end install test.
 
 ### Install
-- **Windows:** download the release, unzip, double-click `media-server/install.bat`.
-- **Linux / macOS / NAS / Raspberry Pi:** `cd media-server && bash install.sh`.
+- **Windows:** download the release, unzip, double-click `install.bat` in the project root.
+- **Linux / macOS / NAS / Raspberry Pi:** `bash install.sh` from the project root.
 - New to Docker? See **GETTING-STARTED** ([UA](GETTING-STARTED.md) ·
   [RU](GETTING-STARTED.ru.md) · [EN](GETTING-STARTED.en.md)).
 

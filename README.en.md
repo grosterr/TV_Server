@@ -38,10 +38,10 @@ This stack is deployed in an isolated environment using **Docker Compose** and c
 
 A single script does all the busywork: it picks a **language** (English / Українська / Русский), brings up the stack, generates `.env`, **reads the Jackett API key for you** (no copy-paste), enables CORS and links FlareSolverr, tunes TorrServer, lets you **add search indexers straight from Jackett**, and prints ready-to-paste Lampa URLs at the end.
 
-- **Windows:** double-click **`media-server/install.bat`**.
-- **Linux / macOS / NAS / Raspberry Pi:**
+- **Windows:** double-click **`install.bat`** in the project root.
+- **Linux / macOS / NAS / Raspberry Pi:** from the project root run
   ```bash
-  cd media-server && bash install.sh
+  bash install.sh
   ```
 
 **Adding indexers by type:** public ones add instantly; semi-private / private ones ask for a login and password (and if an image captcha is required, the installer downloads it so you can type the code); Google reCAPTCHA is done in the Jackett web UI.
