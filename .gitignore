@@ -3,5 +3,6 @@ jackett_config/
 torrserver_data/
 media-server/warp/
 docs/
+CLAUDE.md
 __pycache__/
 *.pyc
