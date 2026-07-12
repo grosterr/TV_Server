@@ -9,7 +9,7 @@
 A local media server built for streaming torrents and aggregated search. Perfectly suited for use with the **Lampa** app on Smart TV, Android TV, or PC.
 
 > 🆕 **New here? Don't know anything about Docker?**
-> 👉 Start with the **[step-by-step "from scratch" guide (GETTING-STARTED)](GETTING-STARTED.md)** — it walks you from installing programs to a movie on your TV in plain language.
+> 👉 Start with the **[step-by-step "from scratch" guide (GETTING-STARTED)](GETTING-STARTED.en.md)** — it walks you from installing programs to a movie on your TV in plain language.
 >
 > This README is a technical reference: architecture, optimization, hiding your IP, troubleshooting.
 

@@ -131,9 +131,15 @@ $lan = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
     Select-Object -First 1).IPAddress
 if (-not $lan) { $lan = '<PC-IP>' }
 
+$apiKey = try { (Get-Content -Raw 'jackett_config/Jackett/ServerConfig.json' | ConvertFrom-Json).APIKey } catch { '' }
+
 Write-Host "`nDone. Point Lampa at your server:" -ForegroundColor Cyan
 Write-Host "  TorrServer: http://$lan`:8090" -ForegroundColor Green
-Write-Host "  Jackett   : http://$lan`:9117   (API key already applied)" -ForegroundColor Green
+Write-Host "  Jackett   : http://$lan`:9117" -ForegroundColor Green
+if ($apiKey) {
+    Write-Host "  API key   : $apiKey" -ForegroundColor Green
+    Write-Host "  (paste it into Lampa -> Parser/Jackett)" -ForegroundColor DarkGray
+}
 if ($wantWarp) {
     Write-Host "  IP hiding : ON — verify with: docker exec warp wget -qO- https://api.ipify.org" -ForegroundColor Green
 }

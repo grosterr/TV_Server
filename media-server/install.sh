@@ -237,7 +237,9 @@ LAN_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src
 echo
 say "Done. Point Lampa at your server:"
 printf '  %sTorrServer:%s http://%s:8090\n' "$C_GREEN" "$C_OFF" "$LAN_IP"
-printf '  %sJackett   :%s http://%s:9117   (API key already applied)\n' "$C_GREEN" "$C_OFF" "$LAN_IP"
+printf '  %sJackett   :%s http://%s:9117\n' "$C_GREEN" "$C_OFF" "$LAN_IP"
+[ -n "${APIKEY:-}" ] && printf '  %sAPI key   :%s %s\n%s  (paste it into Lampa → Parser/Jackett)%s\n' \
+  "$C_GREEN" "$C_OFF" "$APIKEY" "$C_DIM" "$C_OFF"
 if [ "$WANT_WARP" -eq 1 ]; then
   printf '  %sIP hiding :%s ON — verify with: docker exec warp wget -qO- https://api.ipify.org\n' "$C_GREEN" "$C_OFF"
 fi
