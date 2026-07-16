@@ -1,9 +1,16 @@
 # Changelog
 
-## Unreleased
+## v1.1
 
 Security & resource hardening plus a built-in update system — same stack,
 safer defaults.
+
+### Install / Update
+- Fresh install: unzip the release bundle, double-click `install.bat`
+  (Windows) or run `bash install.sh` (Linux / macOS / NAS / Raspberry Pi).
+- From v1.0: re-download the bundle once and run the installer over your
+  existing folder — data and settings are kept. From v1.1 on, the installer
+  updates itself: it detects new releases and offers **UPDATE** in the menu.
 
 ### Changes
 - **Update system** — the installer now knows its version (the `VERSION` file
