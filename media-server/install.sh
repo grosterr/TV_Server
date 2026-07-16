@@ -7,13 +7,17 @@
 #  TorrServer, then open the Jackett web UI so you can add search indexers
 #  there (public ones instantly; login/captcha trackers via their own form).
 #
-#  If a server is already installed here it offers REPAIR / DELETE / QUIT.
+#  If a server is already installed here it offers REPAIR / DELETE / QUIT —
+#  plus UPDATE when a newer GitHub release than the local VERSION exists
+#  (downloads the release, replaces the stack files, keeps all data, then
+#  re-runs itself as repair with a docker image pull).
 #
 #  Usage:  bash install.sh        (run from the media-server/ folder)
 #  Safe to re-run — it's idempotent. UI language: English / Українська / Русский.
 #
 #  Non-interactive (CI / automation): NONINTERACTIVE=1, optionally ACTION=
-#  install|repair|delete (delete needs FORCE=1) and WANT_WARP=0|1.
+#  install|repair|update|delete (delete needs FORCE=1) and WANT_WARP=0|1.
+#  TORLAMP_SKIP_UPDATE_CHECK=1 disables the release check.
 # ============================================================================
 set -Eeuo pipefail
 trap 'printf "\e[31mInstaller aborted (line %s).\e[0m\n" "$LINENO" >&2' ERR
@@ -22,6 +26,16 @@ cd "$SCRIPT_DIR" || exit 1
 
 HELPER=(python3 lib/setup_helpers.py)
 COMPOSE_FILE="docker-compose.yml"
+
+# --- Version / updates -------------------------------------------------------
+TORLAMP_REPO="grosterr/torlamp"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+# VERSION ships at the bundle root; old (pre-1.1) installs have none -> "0",
+# which makes any published release count as an update.
+LOCAL_VERSION="0"
+for _vf in "$ROOT_DIR/VERSION" "$SCRIPT_DIR/VERSION"; do
+  if [ -f "$_vf" ]; then LOCAL_VERSION="$(tr -d ' \t\r\n' < "$_vf")"; break; fi
+done
 
 C_GREEN=$'\e[32m'; C_YEL=$'\e[33m'; C_RED=$'\e[31m'; C_CYAN=$'\e[36m'; C_DIM=$'\e[90m'; C_OFF=$'\e[0m'
 say()  { printf '%s%s%s\n' "$C_CYAN" "$*" "$C_OFF"; }
@@ -36,6 +50,13 @@ declare -A T_en=(
   [installed_title]="A media server is already installed here" [d_repair]="Re-apply config and restart the stack"
   [d_delete]="Stop and remove containers + data" [d_quit]="Exit without changes"
   [ask_action]="[R]epair, [D]elete, or [Q]uit? " [repairing]="Repairing existing installation..."
+  [d_update]="Download the new version and update"
+  [ask_action_upd]="[U]pdate, [R]epair, [D]elete, or [Q]uit? "
+  [upd_check]="Checking for updates..." [upd_avail]="Update available: %s (installed: %s)"
+  [upd_git]="This folder is a git checkout - update with 'git pull' instead. Refreshing Docker images only."
+  [upd_fail]="Could not download the update - check your internet connection and try again later."
+  [upd_downloading]="Downloading Torlamp %s..." [upd_done]="Files updated to %s - restarting the installer..."
+  [pulling]="Pulling fresh Docker images..."
   [del_confirm]="This removes containers, volumes AND data (jackett_config, torrserver_data, warp, .env). Type 'delete' to confirm: "
   [del_cancel]="Cancelled - nothing removed." [removing]="Removing the media server..."
   [removed]="Removed containers, volumes and data. Re-run install.sh to set up again."
@@ -65,6 +86,13 @@ declare -A T_uk=(
   [installed_title]="Медіасервер уже встановлено в цій папці" [d_repair]="Перевстановити конфіг і перезапустити стек"
   [d_delete]="Зупинити й видалити контейнери + дані" [d_quit]="Вийти без змін"
   [ask_action]="[R] Ремонт, [D] Видалити, [Q] Вихід? " [repairing]="Ремонт наявної інсталяції..."
+  [d_update]="Завантажити нову версію та оновити"
+  [ask_action_upd]="[U] Оновити, [R] Ремонт, [D] Видалити, [Q] Вихід? "
+  [upd_check]="Перевірка оновлень..." [upd_avail]="Доступне оновлення: %s (встановлено: %s)"
+  [upd_git]="Ця тека - git-репозиторій: оновлюйтеся через 'git pull'. Наразі лише оновлю Docker-образи."
+  [upd_fail]="Не вдалося завантажити оновлення - перевірте інтернет і спробуйте пізніше."
+  [upd_downloading]="Завантаження Torlamp %s..." [upd_done]="Файли оновлено до %s - перезапуск інсталятора..."
+  [pulling]="Завантаження свіжих Docker-образів..."
   [del_confirm]="Це видалить контейнери, томи ТА дані (jackett_config, torrserver_data, warp, .env). Введіть 'delete' для підтвердження: "
   [del_cancel]="Скасовано - нічого не видалено." [removing]="Видалення медіасервера..."
   [removed]="Видалено контейнери, томи й дані. Запустіть install.sh знову, щоб налаштувати."
@@ -94,6 +122,13 @@ declare -A T_ru=(
   [installed_title]="Медиасервер уже установлен в этой папке" [d_repair]="Переустановить конфиг и перезапустить стек"
   [d_delete]="Остановить и удалить контейнеры + данные" [d_quit]="Выйти без изменений"
   [ask_action]="[R] Ремонт, [D] Удалить, [Q] Выход? " [repairing]="Ремонт существующей установки..."
+  [d_update]="Скачать новую версию и обновить"
+  [ask_action_upd]="[U] Обновить, [R] Ремонт, [D] Удалить, [Q] Выход? "
+  [upd_check]="Проверка обновлений..." [upd_avail]="Доступно обновление: %s (установлено: %s)"
+  [upd_git]="Эта папка - git-репозиторий: обновляйтесь через 'git pull'. Пока лишь обновлю Docker-образы."
+  [upd_fail]="Не удалось скачать обновление - проверьте интернет и попробуйте позже."
+  [upd_downloading]="Скачивание Torlamp %s..." [upd_done]="Файлы обновлены до %s - перезапуск инсталлятора..."
+  [pulling]="Загрузка свежих Docker-образов..."
   [del_confirm]="Это удалит контейнеры, тома И данные (jackett_config, torrserver_data, warp, .env). Введите 'delete' для подтверждения: "
   [del_cancel]="Отменено - ничего не удалено." [removing]="Удаление медиасервера..."
   [removed]="Удалены контейнеры, тома и данные. Запустите install.sh снова для установки."
@@ -135,7 +170,8 @@ if [ "$NONINTERACTIVE" != "1" ] && have whiptail; then USE_WHIPTAIL=1; fi
 
 # --- Language ---------------------------------------------------------------
 case "${LANG_CHOICE:-${LANG:-}}" in uk*|*UA*) L=uk;; ru*|*RU*) L=ru;; *) L=en;; esac
-if [ "$NONINTERACTIVE" != "1" ]; then
+# Explicit LANG_CHOICE (e.g. the post-update restart) skips the prompt.
+if [ "$NONINTERACTIVE" != "1" ] && [ -z "${LANG_CHOICE:-}" ]; then
   if [ "$USE_WHIPTAIL" = 1 ]; then
     L=$(whiptail --title "Torlamp" --menu "Language / Мова / Язык" 12 50 3 \
       en "English" uk "Українська" ru "Русский" 3>&1 1>&2 2>&3) || L=en
@@ -186,6 +222,61 @@ cat wgcf-profile.conf'
   [ -n "$WARP_KEY" ] || return 2
 }
 
+# Best-effort release check; sets LATEST_TAG ("" = up-to-date or unreachable).
+check_update() {
+  LATEST_TAG=""
+  [ "${TORLAMP_SKIP_UPDATE_CHECK:-0}" = "1" ] && return 0
+  LATEST_TAG=$("${HELPER[@]}" check-update --repo "$TORLAMP_REPO" \
+    --current "$LOCAL_VERSION" 2>/dev/null) || LATEST_TAG=""
+  return 0
+}
+
+# Download the latest release and replace the stack files with it.
+# Data (.env, jackett_config/, torrserver_data/, warp/) is NOT in the release
+# archive, so copying over never touches it. On success this function execs
+# the freshly downloaded installer (repair + image pull) and never returns;
+# every failure path returns 0 so the caller can fall back to plain repair.
+do_update() {
+  local m tmp src dest newpin
+  if [ -d "$ROOT_DIR/.git" ] || [ -d "$SCRIPT_DIR/.git" ]; then
+    warn "$(t upd_git)"; return 0
+  fi
+  if [ -z "$LATEST_TAG" ]; then warn "$(t upd_fail)"; return 0; fi
+  m="$(t upd_downloading)"; say "${m/\%s/$LATEST_TAG}"
+  tmp=$(mktemp -d)
+  if ! curl -fsSL "https://github.com/${TORLAMP_REPO}/archive/refs/tags/${LATEST_TAG}.tar.gz" \
+      | tar -xz -C "$tmp"; then
+    rm -rf "$tmp"; warn "$(t upd_fail)"; return 0
+  fi
+  src=$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -n1)
+  if [ -z "$src" ] || [ ! -d "$src/media-server" ]; then
+    rm -rf "$tmp"; warn "$(t upd_fail)"; return 0
+  fi
+  if [ -f "$ROOT_DIR/install.sh" ] || [ -f "$ROOT_DIR/install.bat" ] || [ -f "$ROOT_DIR/VERSION" ]; then
+    cp -a "$src/." "$ROOT_DIR/"          # normal bundle layout
+    dest="$ROOT_DIR"
+  else
+    cp -a "$src/media-server/." "$SCRIPT_DIR/"   # media-server/ copied standalone
+    if [ -f "$src/VERSION" ]; then cp -a "$src/VERSION" "$SCRIPT_DIR/VERSION"; fi
+    dest="$SCRIPT_DIR"
+  fi
+  rm -rf "$tmp"
+  # Releases older than the update system ship no VERSION file — stamp the tag
+  # we just installed so the check doesn't re-offer the same release forever.
+  if [ ! -f "$dest/VERSION" ]; then printf '%s\n' "${LATEST_TAG#v}" > "$dest/VERSION"; fi
+  # Keep the TorrServer image pin in .env in sync with the shipped default —
+  # it's our crash-bug pin, not a user preference.
+  newpin=$(grep -E '^TORRSERVER_VERSION=' "$SCRIPT_DIR/.env.example" 2>/dev/null | cut -d= -f2-) || newpin=""
+  if [ -n "$newpin" ] && [ -f .env ]; then
+    "${HELPER[@]}" render-env .env .env --set "TORRSERVER_VERSION=${newpin}"
+  fi
+  m="$(t upd_done)"; ok "${m/\%s/$LATEST_TAG}"
+  # install.sh on disk was just replaced; exec starts a NEW bash that parses
+  # the new file from scratch, so the old process never reads the stale file.
+  exec env ACTION=repair PULL_IMAGES=1 NONINTERACTIVE="$NONINTERACTIVE" \
+    LANG_CHOICE="$L" bash "$SCRIPT_DIR/install.sh"
+}
+
 is_installed() {
   [ -f .env ] && return 0
   docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qE '^(torrserver|jackett|flaresolverr|warp)$' && return 0
@@ -207,19 +298,44 @@ do_delete() {
   ok "$(t removed)"
 }
 
-# --- Existing installation? offer REPAIR / DELETE / QUIT --------------------
+# --- Existing installation? offer UPDATE / REPAIR / DELETE / QUIT -----------
 MODE=install
+LATEST_TAG=""
 if is_installed; then
   act="${ACTION:-}"
+  # Best-effort version check: before the interactive menu, or when the user
+  # explicitly asked for ACTION=update. NONINTERACTIVE repair (CI) skips it.
+  if { [ -z "$act" ] && [ "$NONINTERACTIVE" != "1" ]; } || [ "${act,,}" = "update" ]; then
+    say "$(t upd_check)"; check_update
+  fi
   if [ -z "$act" ]; then
     if [ "$NONINTERACTIVE" = "1" ]; then act=repair
     elif [ "$USE_WHIPTAIL" = "1" ]; then
-      act=$(whiptail --title "Torlamp" --menu "$(t installed_title)" 14 64 3 \
-        REPAIR "$(t d_repair)" DELETE "$(t d_delete)" QUIT "$(t d_quit)" 3>&1 1>&2 2>&3) || act=QUIT
+      if [ -n "$LATEST_TAG" ]; then
+        m="$(t upd_avail)"; m="${m/\%s/$LATEST_TAG}"; m="${m/\%s/$LOCAL_VERSION}"
+        act=$(whiptail --title "Torlamp" --menu "$(t installed_title)"$'\n'"$m" 16 68 4 \
+          UPDATE "$(t d_update)" REPAIR "$(t d_repair)" \
+          DELETE "$(t d_delete)" QUIT "$(t d_quit)" 3>&1 1>&2 2>&3) || act=QUIT
+      else
+        act=$(whiptail --title "Torlamp" --menu "$(t installed_title)" 14 64 3 \
+          REPAIR "$(t d_repair)" DELETE "$(t d_delete)" QUIT "$(t d_quit)" 3>&1 1>&2 2>&3) || act=QUIT
+      fi
     else
-      say "$(t installed_title)"; read -r -p "$(t ask_action)" a
-      case "${a,,}" in r*) act=REPAIR;; d*) act=DELETE;; *) act=QUIT;; esac
+      say "$(t installed_title)"
+      if [ -n "$LATEST_TAG" ]; then
+        m="$(t upd_avail)"; m="${m/\%s/$LATEST_TAG}"; m="${m/\%s/$LOCAL_VERSION}"
+        say "$m"; read -r -p "$(t ask_action_upd)" a
+        case "${a,,}" in u*|о*) act=UPDATE;; r*) act=REPAIR;; d*) act=DELETE;; *) act=QUIT;; esac
+      else
+        read -r -p "$(t ask_action)" a
+        case "${a,,}" in r*) act=REPAIR;; d*) act=DELETE;; *) act=QUIT;; esac
+      fi
     fi
+  fi
+  if [ "${act,,}" = "update" ]; then
+    do_update        # execs the new installer on success and never returns
+    PULL_IMAGES=1    # fell back (git checkout / download failed): refresh images
+    act=repair
   fi
   case "${act,,}" in
     quit)   exit 0 ;;
@@ -309,6 +425,12 @@ fi
 # linuxserver/jackett writes its config as PUID:PGID. Match the current user so
 # this script can rewrite ServerConfig.json afterward (enable CORS, read key).
 export PUID="${PUID:-$(id -u)}" PGID="${PGID:-$(id -g)}"
+# After an update: refresh images (new pinned tags + :latest ones). Soft —
+# offline pull just keeps the current images.
+if [ "${PULL_IMAGES:-0}" = "1" ]; then
+  say "$(t pulling)"
+  "${DC[@]}" ${PROFILE_ARGS[@]+"${PROFILE_ARGS[@]}"} -f "$COMPOSE_FILE" pull || true
+fi
 start_msg="$(t starting)"; say "${start_msg/\%s/$COMPOSE_FILE}"
 "${DC[@]}" ${PROFILE_ARGS[@]+"${PROFILE_ARGS[@]}"} -f "$COMPOSE_FILE" up -d
 

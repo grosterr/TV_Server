@@ -48,7 +48,7 @@ A single script does all the busywork: it picks a **language** (English / Укр
 **Adding indexers:** after a successful run the installer automatically opens your browser at `http://localhost:9117` (the Jackett web UI). There you can click **`+ Add indexer`** and add the trackers you want (public or private, with login and captcha).
 **Saved settings:** when the install finishes, all the ready addresses (TorrServer, Jackett) and the API key it read are written to **`lampa_settings.txt`** in the repo root, so you always have them handy.
 
-If a server is **already installed**, the installer offers **REPAIR** (re-apply config), **DELETE** (remove everything) or **QUIT**. IP hiding via WARP is optional. The script is **idempotent**; you only need Docker installed (it reminds you about router port forwarding but can't automate it).
+If a server is **already installed**, the installer offers **REPAIR** (re-apply config), **DELETE** (remove everything) or **QUIT** — and when GitHub has a newer release than the local version (the `VERSION` file), **UPDATE** appears first: it downloads the release, replaces the stack files (your data — `.env`, `jackett_config/`, `torrserver_data/` — is untouched), syncs the TorrServer image pin and relaunches itself with a Docker image pull. The release check can be disabled with `TORLAMP_SKIP_UPDATE_CHECK=1`. IP hiding via WARP is optional. The script is **idempotent**; you only need Docker installed (it reminds you about router port forwarding but can't automate it).
 
 <details>
 <summary><b>Or manually, step by step ⤵️</b></summary>

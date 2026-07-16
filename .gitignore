@@ -8,3 +8,5 @@ __pycache__/
 *.pyc
 .agents/
 lampa_settings.txt
+*.zip
+*.tar.gz

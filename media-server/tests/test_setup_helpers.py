@@ -135,6 +135,27 @@ class PickCacheSize(unittest.TestCase):
         self.assertEqual(sh.pick_cache_size(32 * self.GIB), sh.CACHE_MAX)
 
 
+class Versions(unittest.TestCase):
+    def test_parse_tolerates_real_world_tags(self):
+        self.assertEqual(sh.parse_version("v1"), (1, 0, 0))
+        self.assertEqual(sh.parse_version("1.1"), (1, 1, 0))
+        self.assertEqual(sh.parse_version("v1.2.3"), (1, 2, 3))
+        self.assertEqual(sh.parse_version("v1.2.3-beta4"), (1, 2, 3))
+
+    def test_unparsable_is_zero(self):
+        self.assertEqual(sh.parse_version(""), (0, 0, 0))
+        self.assertEqual(sh.parse_version("latest"), (0, 0, 0))
+
+    def test_is_newer(self):
+        self.assertTrue(sh.is_newer("v1.1", "1.0.0"))
+        self.assertTrue(sh.is_newer("v2", "1.9.9"))
+        # old installs have no VERSION file -> current "0" -> any release wins
+        self.assertTrue(sh.is_newer("v1", "0"))
+        self.assertFalse(sh.is_newer("v1", "1.0.0"))     # equal
+        self.assertFalse(sh.is_newer("v1", "1.1.0"))     # local ahead (dev)
+        self.assertFalse(sh.is_newer("", "1.0.0"))       # no tag -> no update
+
+
 class Cli(unittest.TestCase):
     """Exercise the CLI the way install.sh calls it."""
     def _run(self, *args, **kw):

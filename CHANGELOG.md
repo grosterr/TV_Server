@@ -2,9 +2,21 @@
 
 ## Unreleased
 
-Security & resource hardening — same stack, safer defaults.
+Security & resource hardening plus a built-in update system — same stack,
+safer defaults.
 
 ### Changes
+- **Update system** — the installer now knows its version (the `VERSION` file
+  at the bundle root) and checks GitHub for a newer release when a server is
+  already installed. If one exists, an **UPDATE** menu entry downloads it,
+  replaces the stack files (data — `.env`, `jackett_config/`,
+  `torrserver_data/`, `warp/` — is untouched), syncs the TorrServer image pin
+  in `.env` with the shipped default, and relaunches the fresh installer as
+  repair with a `docker compose pull`. Old installs without a `VERSION` file
+  are treated as version 0, so they're offered the update too.
+  Non-interactive: `ACTION=update`; opt out of the check with
+  `TORLAMP_SKIP_UPDATE_CHECK=1`. Git checkouts are never overwritten (use
+  `git pull`).
 - **WARP profile generation fixed on ARM** — the installer now picks the right
   `wgcf` binary for the host architecture (amd64 / arm64 / armv7), so IP hiding
   works on Raspberry Pi and ARM NAS boxes instead of silently failing.

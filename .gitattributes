@@ -2,3 +2,9 @@
 *.sh text eol=lf
 # Windows batch files use CRLF.
 *.bat text eol=crlf
+
+# Exclude internal/repo-only files from release archives (git archive)
+.github export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+media-server/tests export-ignore

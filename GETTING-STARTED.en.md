@@ -58,7 +58,7 @@ You control everything through the **Lampa** app — a nice catalog with posters
 > - **Windows:** double-click **`install.bat`** in the project root.
 > - **Linux / Mac:** from the project root — `bash install.sh`
 >
-> The installer asks for a **language** (English / Українська / Русский), optionally enables IP hiding (WARP), brings up the server, configures Jackett, **reads the API key for you**, and **opens the Jackett web UI** where you add indexers. It saves all the ready addresses and the key to **`lampa_settings.txt`** (in the project root) — grab them from there for Lampa (Step 5). If a server is already installed, you get a **REPAIR / DELETE / QUIT** choice. Want full manual control — do Steps 3–4 below.
+> The installer asks for a **language** (English / Українська / Русский), optionally enables IP hiding (WARP), brings up the server, configures Jackett, **reads the API key for you**, and **opens the Jackett web UI** where you add indexers. It saves all the ready addresses and the key to **`lampa_settings.txt`** (in the project root) — grab them from there for Lampa (Step 5). If a server is already installed, you get a **REPAIR / DELETE / QUIT** choice — plus **UPDATE** when a newer version is out on GitHub: the installer downloads the new files itself (your data and settings are untouched) and refreshes the Docker images. Want full manual control — do Steps 3–4 below.
 
 ## Step 1. Install Docker Desktop
 

@@ -24,6 +24,29 @@ TORRSERVER_DEFAULTS = dict(
     PreloadCache=10,  # % of cache preloaded before playback (quick start)
 )
 
+# GitHub repo the update checker queries for the latest release.
+GITHUB_REPO = "grosterr/torlamp"
+
+
+def parse_version(tag: str) -> Tuple[int, int, int]:
+    """Normalize a version tag to a comparable (major, minor, patch) tuple.
+
+    Tolerant of real-world tags: 'v1' -> (1,0,0), '1.1' -> (1,1,0),
+    'v1.2.3-beta4' -> (1,2,3). Unparsable/empty -> (0,0,0), which makes any
+    real release "newer" — exactly right for old installs without a VERSION
+    file.
+    """
+    nums = [int(n) for n in re.findall(r"\d+", tag or "")[:3]]
+    while len(nums) < 3:
+        nums.append(0)
+    return tuple(nums)  # type: ignore[return-value]
+
+
+def is_newer(remote_tag: str, local_version: str) -> bool:
+    """True if the release tag is strictly newer than the installed version."""
+    return parse_version(remote_tag) > parse_version(local_version)
+
+
 # RAM-cache bounds for pick_cache_size (bytes).
 CACHE_MIN = 256 * 1024 * 1024   # even a 1 GB Raspberry Pi can spare this
 CACHE_MAX = 2 * 1024 ** 3       # more gives no benefit for streaming
@@ -158,6 +181,23 @@ def _cmd_tune_torrserver(args) -> int:
     return 0
 
 
+def _cmd_check_update(args) -> int:
+    """Print the latest release tag if it's newer than --current; print
+    nothing when up-to-date. Network problems exit 1 quietly — the installer
+    treats the check as best-effort."""
+    url = f"https://api.github.com/repos/{args.repo}/releases/latest"
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "torlamp-installer"})
+    try:
+        tag = json.load(urllib.request.urlopen(req, timeout=6)).get("tag_name", "")
+    except Exception:  # noqa: BLE001 — offline / rate-limited: stay quiet
+        return 1
+    if tag and is_newer(tag, args.current):
+        print(tag)
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -179,6 +219,11 @@ def main(argv=None) -> int:
                    help="host RAM in bytes; cache is picked from it")
     p.set_defaults(func=_cmd_tune_torrserver)
 
+    p = sub.add_parser("check-update")
+    p.add_argument("--repo", default=GITHUB_REPO)
+    p.add_argument("--current", required=True,
+                   help="installed version (contents of the VERSION file)")
+    p.set_defaults(func=_cmd_check_update)
 
     args = parser.parse_args(argv)
     return args.func(args)

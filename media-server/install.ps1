@@ -8,16 +8,64 @@
     and opens the Jackett web UI so you can add search indexers there.
 
     If a server is already installed here, it instead offers REPAIR / DELETE /
-    QUIT. UI language: English / Українська / Русский.
+    QUIT — plus UPDATE when a newer GitHub release than the local VERSION
+    exists (downloads the release, replaces the stack files, keeps all data,
+    then relaunches itself as repair with a docker image pull).
+    UI language: English / Українська / Русский.
+    TORLAMP_SKIP_UPDATE_CHECK=1 disables the release check.
 
     Double-click install.bat, or run:  ./install.ps1
     Safe to re-run — it's idempotent.
 #>
 [CmdletBinding()]
-param()
+param(
+    # Skip the action menu: 'repair' | 'update' | 'delete'. Used by the
+    # self-update restart; mirrors install.sh's ACTION env variable.
+    [string]$Action = '',
+    # Preselect UI language ('en'|'uk'|'ru') — skips the language menu.
+    [string]$Lang = ''
+)
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
+
+# --- Version / updates -------------------------------------------------------
+$TorlampRepo = 'grosterr/torlamp'
+$rootDir = Split-Path $PSScriptRoot -Parent
+# VERSION ships at the bundle root; old (pre-1.1) installs have none -> '0',
+# which makes any published release count as an update.
+$localVersion = '0'
+foreach ($vf in (Join-Path $rootDir 'VERSION'), (Join-Path $PSScriptRoot 'VERSION')) {
+    if (Test-Path $vf) { $localVersion = (Get-Content -Raw $vf).Trim(); break }
+}
+
+function ConvertTo-VersionTuple([string]$s) {
+    # 'v1' -> 1,0,0; '1.1' -> 1,1,0; 'v1.2.3-beta4' -> 1,2,3; junk -> 0,0,0
+    $nums = @([regex]::Matches($s, '\d+') | ForEach-Object { [int]$_.Value } | Select-Object -First 3)
+    while ($nums.Count -lt 3) { $nums += 0 }
+    return ,$nums
+}
+
+function Test-NewerVersion([string]$Remote, [string]$Local) {
+    $r = ConvertTo-VersionTuple $Remote
+    $l = ConvertTo-VersionTuple $Local
+    for ($i = 0; $i -lt 3; $i++) {
+        if ($r[$i] -ne $l[$i]) { return ($r[$i] -gt $l[$i]) }
+    }
+    return $false
+}
+
+function Get-LatestReleaseTag {
+    # Best-effort: returns the newer release tag or '' (up-to-date/offline).
+    if ($env:TORLAMP_SKIP_UPDATE_CHECK -eq '1') { return '' }
+    try {
+        $rel = Invoke-RestMethod "https://api.github.com/repos/$TorlampRepo/releases/latest" `
+            -TimeoutSec 6 -Headers @{ 'User-Agent' = 'torlamp-installer' }
+        $tag = [string]$rel.tag_name
+    } catch { return '' }
+    if ($tag -and (Test-NewerVersion $tag $localVersion)) { return $tag }
+    return ''
+}
 
 function Test-Cmd { param($Name) [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
 
@@ -77,6 +125,58 @@ cat wgcf-profile.conf
     return @{ Status = 'ok'; Key = $key; Addr = $addr }
 }
 
+function Update-Install {
+    <#
+      Download release $Tag and replace the stack files with it. Data (.env,
+      jackett_config/, torrserver_data/, warp/) is NOT in the release archive,
+      so copying over never touches it. Returns $true on success — the caller
+      then relaunches the freshly downloaded installer as repair + image pull.
+    #>
+    param([string]$Tag)
+    if ((Test-Path (Join-Path $rootDir '.git')) -or (Test-Path (Join-Path $PSScriptRoot '.git'))) {
+        Write-Warning (L 'upd_git'); return $false
+    }
+    if (-not $Tag) { Write-Warning (L 'upd_fail'); return $false }
+    Write-Host ((L 'upd_downloading') -f $Tag) -ForegroundColor Cyan
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ('torlamp-update-' + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $tmp | Out-Null
+        $zip = Join-Path $tmp 'release.zip'
+        Invoke-WebRequest "https://github.com/$TorlampRepo/archive/refs/tags/$Tag.zip" `
+            -OutFile $zip -UseBasicParsing
+        Expand-Archive -Path $zip -DestinationPath $tmp
+        $src = Get-ChildItem -Path $tmp -Directory | Select-Object -First 1
+        if (-not $src -or -not (Test-Path (Join-Path $src.FullName 'media-server'))) {
+            Write-Warning (L 'upd_fail'); return $false
+        }
+        if ((Test-Path (Join-Path $rootDir 'install.bat')) -or (Test-Path (Join-Path $rootDir 'VERSION'))) {
+            Copy-Item -Path (Join-Path $src.FullName '*') -Destination $rootDir -Recurse -Force
+            $dest = $rootDir
+        } else {
+            # media-server/ was copied around standalone — update just this folder.
+            Copy-Item -Path (Join-Path $src.FullName 'media-server\*') -Destination $PSScriptRoot -Recurse -Force
+            Copy-Item -Path (Join-Path $src.FullName 'VERSION') -Destination $PSScriptRoot -Force -ErrorAction SilentlyContinue
+            $dest = $PSScriptRoot
+        }
+        # Releases older than the update system ship no VERSION file — stamp
+        # the tag we just installed so the check doesn't re-offer it forever.
+        $vFile = Join-Path $dest 'VERSION'
+        if (-not (Test-Path $vFile)) {
+            Set-Content -LiteralPath $vFile -Value ($Tag -replace '^v', '') -Encoding UTF8
+        }
+    } catch {
+        Write-Warning (L 'upd_fail'); return $false
+    } finally {
+        Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+    }
+    # Keep the TorrServer image pin in .env in sync with the shipped default —
+    # it's our crash-bug pin, not a user preference.
+    $pin = Get-EnvValue (Join-Path $PSScriptRoot '.env.example') 'TORRSERVER_VERSION'
+    if ($pin -and (Test-Path .env)) { Set-EnvValue .env 'TORRSERVER_VERSION' $pin }
+    Write-Host ('  + ' + ((L 'upd_done') -f $Tag)) -ForegroundColor Green
+    return $true
+}
+
 # --- Single-select menu (arrows to move, Enter to pick) ----------------------
 function Show-Menu {
     param([string]$Title, [object[]]$Options)   # each: @{ Key=..; Desc=.. }
@@ -127,6 +227,12 @@ $MSG = @{
     nothing='Nothing to do.'; del_confirm="Removes containers, volumes AND data (jackett_config, torrserver_data, warp, .env). Type 'delete' to confirm"
     del_cancel='Cancelled - nothing removed.'; removing='Removing the media server...'
     removed='Removed containers, volumes and data. Re-run install to set up again.'
+    d_update='Download the new version and update'; upd_check='Checking for updates...'
+    upd_avail='Update available: {0} (installed: {1})'
+    upd_git="This folder is a git checkout - update with 'git pull' instead. Refreshing Docker images only."
+    upd_fail='Could not download the update - check your internet connection and try again later.'
+    upd_downloading='Downloading Torlamp {0}...'; upd_done='Files updated to {0} - restarting the installer...'
+    pulling='Pulling fresh Docker images...'
     repairing='Repairing existing installation...'; cl_title='Torlamp — core (TorrServer + Jackett) is always installed'
     solverr_item='FlareSolverr (Cloudflare bypass for protected trackers; ~0.5 GB RAM)'
     warp_item='Hide IP for P2P (Cloudflare WARP)'; warp_gen='Generating a free Cloudflare WARP profile...'
@@ -144,6 +250,12 @@ $MSG = @{
     nothing='Немає що робити.'; del_confirm="Видаляє контейнери, томи ТА дані (jackett_config, torrserver_data, warp, .env). Введіть 'delete' для підтвердження"
     del_cancel='Скасовано - нічого не видалено.'; removing='Видалення медіасервера...'
     removed='Видалено контейнери, томи й дані. Запустіть install знову для налаштування.'
+    d_update='Завантажити нову версію та оновити'; upd_check='Перевірка оновлень...'
+    upd_avail='Доступне оновлення: {0} (встановлено: {1})'
+    upd_git="Ця тека - git-репозиторій: оновлюйтеся через 'git pull'. Наразі лише оновлю Docker-образи."
+    upd_fail='Не вдалося завантажити оновлення - перевірте інтернет і спробуйте пізніше.'
+    upd_downloading='Завантаження Torlamp {0}...'; upd_done='Файли оновлено до {0} - перезапуск інсталятора...'
+    pulling='Завантаження свіжих Docker-образів...'
     repairing='Ремонт наявної інсталяції...'; cl_title='Torlamp — ядро (TorrServer + Jackett) ставиться завжди'
     solverr_item='FlareSolverr (обхід Cloudflare для захищених трекерів; ~0.5 ГБ RAM)'
     warp_item='Приховати IP для P2P (Cloudflare WARP)'; warp_gen='Генерація безкоштовного профілю Cloudflare WARP...'
@@ -161,6 +273,12 @@ $MSG = @{
     nothing='Нечего делать.'; del_confirm="Удаляет контейнеры, тома И данные (jackett_config, torrserver_data, warp, .env). Введите 'delete' для подтверждения"
     del_cancel='Отменено - ничего не удалено.'; removing='Удаление медиасервера...'
     removed='Удалены контейнеры, тома и данные. Запустите install снова для установки.'
+    d_update='Скачать новую версию и обновить'; upd_check='Проверка обновлений...'
+    upd_avail='Доступно обновление: {0} (установлено: {1})'
+    upd_git="Эта папка - git-репозиторий: обновляйтесь через 'git pull'. Пока лишь обновлю Docker-образы."
+    upd_fail='Не удалось скачать обновление - проверьте интернет и попробуйте позже.'
+    upd_downloading='Скачивание Torlamp {0}...'; upd_done='Файлы обновлены до {0} - перезапуск инсталлятора...'
+    pulling='Загрузка свежих Docker-образов...'
     repairing='Ремонт существующей установки...'; cl_title='Torlamp — ядро (TorrServer + Jackett) ставится всегда'
     solverr_item='FlareSolverr (обход Cloudflare для защищённых трекеров; ~0.5 ГБ RAM)'
     warp_item='Скрыть IP для P2P (Cloudflare WARP)'; warp_gen='Генерация бесплатного профиля Cloudflare WARP...'
@@ -186,25 +304,57 @@ if ($LASTEXITCODE -ne 0) { throw "Docker is installed but the daemon isn't runni
 
 # --- Language ---------------------------------------------------------------
 $script:Lang = switch ((Get-Culture).TwoLetterISOLanguageName) { 'uk' { 'uk' } 'ru' { 'ru' } default { 'en' } }
-$pick = Show-Menu -Title (L 'lang_title') -Options @(
-    [pscustomobject]@{ Key = 'EN'; Desc = 'English' }
-    [pscustomobject]@{ Key = 'UK'; Desc = 'Українська' }
-    [pscustomobject]@{ Key = 'RU'; Desc = 'Русский' }
-)
-switch ($pick) { 'EN' { $script:Lang = 'en' } 'UK' { $script:Lang = 'uk' } 'RU' { $script:Lang = 'ru' } }
-
-# --- Existing installation? offer REPAIR / DELETE / QUIT --------------------
-$mode = 'install'
-if (Test-Installed) {
-    $act = Show-Menu -Title (L 'installed_title') -Options @(
-        [pscustomobject]@{ Key = 'REPAIR'; Desc = (L 'd_repair') }
-        [pscustomobject]@{ Key = 'DELETE'; Desc = (L 'd_delete') }
-        [pscustomobject]@{ Key = 'QUIT';   Desc = (L 'd_quit') }
+if ($Lang -in 'en','uk','ru') {
+    $script:Lang = $Lang   # explicit (e.g. the post-update restart) — no menu
+} else {
+    $pick = Show-Menu -Title (L 'lang_title') -Options @(
+        [pscustomobject]@{ Key = 'EN'; Desc = 'English' }
+        [pscustomobject]@{ Key = 'UK'; Desc = 'Українська' }
+        [pscustomobject]@{ Key = 'RU'; Desc = 'Русский' }
     )
+    switch ($pick) { 'EN' { $script:Lang = 'en' } 'UK' { $script:Lang = 'uk' } 'RU' { $script:Lang = 'ru' } }
+}
+
+# --- Existing installation? offer UPDATE / REPAIR / DELETE / QUIT -----------
+$mode = 'install'
+$latestTag = ''
+$script:DoPull = $env:TORLAMP_PULL -eq '1'
+if (Test-Installed) {
+    $act = $Action
+    # Best-effort version check: before the interactive menu, or when the
+    # caller explicitly asked for -Action update.
+    if (-not $act -or $act -eq 'update') {
+        Write-Host (L 'upd_check') -ForegroundColor DarkGray
+        $latestTag = Get-LatestReleaseTag
+    }
+    if (-not $act) {
+        $title = (L 'installed_title')
+        $opts = @()
+        if ($latestTag) {
+            $title += "`n" + ((L 'upd_avail') -f $latestTag, $localVersion)
+            $opts += [pscustomobject]@{ Key = 'UPDATE'; Desc = (L 'd_update') }
+        }
+        $opts += [pscustomobject]@{ Key = 'REPAIR'; Desc = (L 'd_repair') }
+        $opts += [pscustomobject]@{ Key = 'DELETE'; Desc = (L 'd_delete') }
+        $opts += [pscustomobject]@{ Key = 'QUIT';   Desc = (L 'd_quit') }
+        $act = Show-Menu -Title $title -Options $opts
+    }
     Clear-Host
     switch ($act) {
         'QUIT'   { Write-Host (L 'nothing') -ForegroundColor Cyan; return }
         'DELETE' { Remove-Install -DC $DC; return }
+        'UPDATE' {
+            if (Update-Install -Tag $latestTag) {
+                # Hand over to the freshly downloaded installer (parsed anew
+                # by the & operator): finish as repair + image pull.
+                $env:TORLAMP_PULL = '1'
+                & (Join-Path $PSScriptRoot 'install.ps1') -Action repair -Lang $script:Lang
+                return
+            }
+            # Fell back (git checkout / download failed): refresh images at least.
+            $script:DoPull = $true
+            $mode = 'repair'
+        }
         'REPAIR' { $mode = 'repair' }
     }
 }
@@ -267,6 +417,13 @@ if ($wantSolverr) { $profileArgs = @('--profile','flaresolverr') }
 else {
     # Choice switched to off — drop a container left from an earlier install.
     docker rm -f flaresolverr *> $null
+}
+# After an update: refresh images (new pinned tags + :latest ones). Soft —
+# an offline pull just keeps the current images.
+if ($script:DoPull) {
+    Write-Host "`n$(L 'pulling')" -ForegroundColor Cyan
+    & $DC[0] @($DC[1..($DC.Count-1)]) @profileArgs -f $composeFile pull
+    Remove-Item Env:TORLAMP_PULL -ErrorAction SilentlyContinue
 }
 Write-Host ("`n" + ((L 'starting') -f $composeFile)) -ForegroundColor Cyan
 & $DC[0] @($DC[1..($DC.Count-1)]) @profileArgs -f $composeFile up -d
