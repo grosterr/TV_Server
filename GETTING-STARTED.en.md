@@ -24,7 +24,7 @@ Think of it as **your own Netflix that plays movies from torrents**, but with no
 This bundle is called **Torlamp** and has three parts:
 - **TorrServer** — the "engine" that turns a torrent into a video stream.
 - **Jackett** — the "search engine" across torrent sites.
-- **FlareSolverr** — a helper that bypasses Cloudflare protection on trackers (so more sites work).
+- **FlareSolverr** — a helper that bypasses Cloudflare protection on trackers (so more sites work). Optional: the installer asks whether to enable it (default — yes); on weak devices you can turn it off to save ~0.5 GB of RAM.
 
 You control everything through the **Lampa** app — a nice catalog with posters.
 

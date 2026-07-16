@@ -19,16 +19,17 @@ This stack is deployed in an isolated environment using **Docker Compose** and c
 
 1. **TorrServer** (port `8090`)
    - **Purpose:** Streaming torrents without needing to download the entire file to your hard drive first.
-   - **Optimization:** The `configure.ps1` script enables an extended in-RAM cache (2 GB), a 10% preload buffer, and raises the P2P connection limit (up to 1000) for maximum bandwidth utilization (up to 300+ Mbit/s). Values are configurable in the `.env` file.
+   - **Optimization:** The `configure.ps1` script enables an extended in-RAM cache (automatic: a quarter of the host's RAM, clamped to 256 MiB – 2 GiB — safe even on a Raspberry Pi), a 10% preload buffer, and raises the P2P connection limit (up to 1000) for maximum bandwidth utilization (up to 300+ Mbit/s). A fixed cache size can be set in the `.env` file (`TORRSERVER_CACHE_SIZE`).
    - Data is cached exclusively in RAM and deleted after viewing.
 
 2. **Jackett** (port `9117`)
    - **Purpose:** A unified proxy server for searching across torrent trackers. It translates search queries from Lampa into requests to specific sites.
    - **Trackers:** Supports adding any public or private trackers (e.g.: Toloka.to, ThePirateBay, 1337x).
 
-3. **FlareSolverr** (port `8191`)
+3. **FlareSolverr** (port `8191`) — *optional, enabled by default*
    - **Purpose:** Bypasses Cloudflare protection ("I'm not a robot", JS challenges) on trackers. Without it, Jackett cannot index protected sites (e.g. 1337x) — this capability is exactly what makes aggregators like JacRed "richer in sources".
    - Jackett contacts it automatically for problematic trackers; the address is set in `configure.ps1` / `.env` (`JACKETT_FLARESOLVERR_URL`).
+   - It is the heaviest component of the stack (a headless browser, ~0.5 GB RAM), so the installer asks whether to enable it (`ENABLE_FLARESOLVERR` in `.env`). On weak hardware you can turn it off — you only lose Cloudflare-protected trackers.
 
 ---
 
@@ -194,6 +195,7 @@ If you're behind a "gray" IP (CGNAT) or just want peers to see an IP other than 
    docker run --rm -v "${PWD}\warp:/data" -w //data alpine sh -c `
      "apk add --no-cache curl >/dev/null && curl -sL -o wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate && cat wgcf-profile.conf"
    ```
+   > On ARM devices (Raspberry Pi, some NAS) replace `linux_amd64` with `linux_arm64` (or `linux_armv7`). The `install.sh` / `install.bat` installer does this automatically and verifies the SHA256 of the downloaded file.
 2. From the output, take the `PrivateKey` and the first `Address` and write them into `.env`:
    ```
    WARP_PRIVATE_KEY=<PrivateKey>

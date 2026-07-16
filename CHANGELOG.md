@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+Security & resource hardening — same stack, safer defaults.
+
+### Changes
+- **WARP profile generation fixed on ARM** — the installer now picks the right
+  `wgcf` binary for the host architecture (amd64 / arm64 / armv7), so IP hiding
+  works on Raspberry Pi and ARM NAS boxes instead of silently failing.
+- **SHA256-verified downloads** — the pinned `wgcf` binary is checked against a
+  known checksum before it runs.
+- **FlareSolverr is now optional** (default: on) — it's the heaviest component
+  (headless browser, ~0.5 GB RAM). The installer asks and records the choice as
+  `ENABLE_FLARESOLVERR` in `.env`; disable it on low-RAM boxes and you only lose
+  Cloudflare-protected trackers. Its container is also capped at 1 GB RAM.
+- **Adaptive TorrServer cache** — with `TORRSERVER_CACHE_SIZE` left empty the
+  cache is now a quarter of host RAM, clamped to 256 MiB – 2 GiB, so a
+  Raspberry Pi no longer gets a fixed 2 GiB cache that OOMed the host. Set an
+  explicit value in `.env` to override.
+- **gluetun pinned to `v3`** — the WARP tunnel image no longer floats on
+  `:latest`; all torrent traffic rides it, so no surprise breaking upgrades.
+- **WARP works on 10.x / 172.16.x LANs** — the tunnel firewall now allows all
+  three RFC1918 ranges, not just `192.168.0.0/16`.
+- **TorrServer waits for the tunnel** — in the WARP variant it starts only after
+  gluetun reports healthy (no more first seconds without network).
+- **Secrets file permissions** — `install.sh` now chmods `.env` and
+  `lampa_settings.txt` to owner-only (0600).
+- **WARP IPv4 address parsing** — only the IPv4 part of the wgcf `Address` line
+  is written to `WARP_ADDRESS_V4` (the IPv6 tail is dropped).
+
 ## v1.0
 
 First stable **Torlamp** release. Everything from the v0.5.x betas — the Torlamp
