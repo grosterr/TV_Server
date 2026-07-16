@@ -15,13 +15,30 @@ import urllib.request
 from typing import Dict, Tuple
 
 # Keys the installer may write into .env (order preserved for stable output).
-ENV_KEYS = ("JACKETT_APIKEY", "WARP_PRIVATE_KEY", "WARP_ADDRESS_V4")
+ENV_KEYS = ("JACKETT_APIKEY", "WARP_PRIVATE_KEY", "WARP_ADDRESS_V4",
+            "ENABLE_FLARESOLVERR")
 
 TORRSERVER_DEFAULTS = dict(
     CacheSize=2147483648, ConnectionsLimit=1000,
     PeersListenPort=42116, TorrentDisconnectTimeout=3600,
     PreloadCache=10,  # % of cache preloaded before playback (quick start)
 )
+
+# RAM-cache bounds for pick_cache_size (bytes).
+CACHE_MIN = 256 * 1024 * 1024   # even a 1 GB Raspberry Pi can spare this
+CACHE_MAX = 2 * 1024 ** 3       # more gives no benefit for streaming
+
+
+def pick_cache_size(total_ram_bytes: int | None) -> int:
+    """Pick a TorrServer RAM-cache size for a host with `total_ram_bytes`.
+
+    A quarter of total RAM, clamped to [256 MiB, 2 GiB] — so a 2 GB
+    Raspberry Pi gets 512 MiB instead of the old fixed 2 GiB (which OOMed
+    the host). Unknown RAM (None/0) falls back to the 2 GiB maximum.
+    """
+    if not total_ram_bytes or total_ram_bytes <= 0:
+        return CACHE_MAX
+    return max(CACHE_MIN, min(CACHE_MAX, total_ram_bytes // 4))
 
 
 def render_env(text: str, overrides: Dict[str, str]) -> str:
@@ -39,7 +56,9 @@ def render_env(text: str, overrides: Dict[str, str]) -> str:
         if value == "" and has_value:
             continue
         if re.search(rf"(?m)^{k}=", text):
-            text = re.sub(rf"(?m)^{k}=.*$", f"{key}={value}", text)
+            # lambda replacement: keeps backslashes in `value` literal
+            # (re.sub would otherwise expand them as escape sequences).
+            text = re.sub(rf"(?m)^{k}=.*$", lambda _: f"{key}={value}", text)
         else:
             if text and not text.endswith("\n"):
                 text += "\n"
@@ -124,14 +143,18 @@ def _cmd_tune_torrserver(args) -> int:
             args.base + path, data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"})
         return urllib.request.urlopen(req, timeout=8)
+    # Explicit --cache-size (from .env) wins; otherwise size from host RAM.
+    cache = args.cache_size or pick_cache_size(args.total_ram)
     try:
         current = json.load(call("/settings", {"action": "get"}))
-        merged = merge_torrserver_settings(current)
+        merged = merge_torrserver_settings(current, CacheSize=cache)
         call("/settings", {"action": "set", "sets": merged}).read()
     except Exception as exc:  # noqa: BLE001 — installer prints a soft warning
         print(f"unreachable: {exc}", file=sys.stderr)
         return 1
-    print("  + cache 2 GiB, 1000 connections, peer port 42116, preload 10%")
+    gib = cache / 2 ** 30
+    print(f"  + cache {gib:.2g} GiB, 1000 connections, "
+          "peer port 42116, preload 10%")
     return 0
 
 
@@ -150,6 +173,10 @@ def main(argv=None) -> int:
 
     p = sub.add_parser("tune-torrserver")
     p.add_argument("base")
+    p.add_argument("--cache-size", type=int, default=0,
+                   help="explicit RAM cache in bytes (overrides --total-ram)")
+    p.add_argument("--total-ram", type=int, default=0,
+                   help="host RAM in bytes; cache is picked from it")
     p.set_defaults(func=_cmd_tune_torrserver)
 
 

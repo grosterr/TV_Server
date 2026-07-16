@@ -53,6 +53,11 @@ class RenderEnv(unittest.TestCase):
         out = sh.render_env("FOO=1", {"BAR": "2"})
         self.assertEqual(out, "FOO=1\nBAR=2\n")
 
+    def test_backslashes_in_value_stay_literal(self):
+        # re.sub replacement escapes (\g<0>, \1) must not be expanded
+        out = sh.render_env("SITE_PASS=old\n", {"SITE_PASS": r"a\1b\g<0>c"})
+        self.assertIn(r"SITE_PASS=a\1b\g<0>c" + "\n", out)
+
 
 class PatchJackett(unittest.TestCase):
     def test_enables_cors_and_links_flaresolverr(self):
@@ -108,6 +113,26 @@ class MergeTorrServer(unittest.TestCase):
     def test_explicit_override_wins(self):
         merged = sh.merge_torrserver_settings({}, CacheSize=999)
         self.assertEqual(merged["CacheSize"], 999)
+
+
+class PickCacheSize(unittest.TestCase):
+    GIB = 1024 ** 3
+
+    def test_unknown_ram_falls_back_to_max(self):
+        self.assertEqual(sh.pick_cache_size(None), sh.CACHE_MAX)
+        self.assertEqual(sh.pick_cache_size(0), sh.CACHE_MAX)
+
+    def test_quarter_of_ram_in_the_middle(self):
+        # 4 GiB host -> 1 GiB cache
+        self.assertEqual(sh.pick_cache_size(4 * self.GIB), self.GIB)
+
+    def test_clamped_to_min_on_tiny_hosts(self):
+        # 512 MiB host -> floor of 256 MiB, not 128 MiB
+        self.assertEqual(sh.pick_cache_size(512 * 1024 * 1024), sh.CACHE_MIN)
+
+    def test_clamped_to_max_on_big_hosts(self):
+        # 32 GiB host -> still 2 GiB
+        self.assertEqual(sh.pick_cache_size(32 * self.GIB), sh.CACHE_MAX)
 
 
 class Cli(unittest.TestCase):

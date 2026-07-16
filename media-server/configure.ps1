@@ -148,7 +148,14 @@ if (-not (Wait-ForService -Url $JackettUrl -Name 'Jackett' -TimeoutSec $TimeoutS
 }
 
 Write-Host "Tuning TorrServer:" -ForegroundColor Cyan
-$cache = if ($env['TORRSERVER_CACHE_SIZE']) { [long]$env['TORRSERVER_CACHE_SIZE'] } else { 2147483648 }
+# Explicit TORRSERVER_CACHE_SIZE in .env wins; empty = auto — a quarter of
+# host RAM clamped to 256 MiB..2 GiB (mirrors setup_helpers.pick_cache_size,
+# so a Raspberry Pi is not asked to hold a 2 GiB cache).
+$cache = if ($env['TORRSERVER_CACHE_SIZE']) { [long]$env['TORRSERVER_CACHE_SIZE'] } else {
+    $totalRam = try { (Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).TotalPhysicalMemory } catch { 0 }
+    if ($totalRam -gt 0) { [math]::Max(268435456, [math]::Min(2147483648, [long]($totalRam / 4))) }
+    else { 2147483648 }
+}
 $conn  = if ($env['TORRSERVER_CONN_LIMIT'])  { [int]$env['TORRSERVER_CONN_LIMIT'] }   else { 1000 }
 $port  = if ($env['TORRSERVER_PEER_PORT'])   { [int]$env['TORRSERVER_PEER_PORT'] }    else { 42116 }
 $dct   = if ($env['TORRSERVER_DISCONNECT_TIMEOUT']) { [int]$env['TORRSERVER_DISCONNECT_TIMEOUT'] } else { 3600 }
@@ -160,7 +167,11 @@ if (Wait-ForService -Url $TorrServerUrl -Name 'TorrServer' -TimeoutSec 10) {
 }
 
 Write-Host "Linking FlareSolverr (Cloudflare bypass):" -ForegroundColor Cyan
-$fsUrl = if ($env['JACKETT_FLARESOLVERR_URL']) { $env['JACKETT_FLARESOLVERR_URL'] } else { 'http://flaresolverr:8191' }
+# ENABLE_FLARESOLVERR=0 (installer choice) -> clear the link so Jackett
+# doesn't wait on a container that isn't running.
+$fsUrl = if ($env['ENABLE_FLARESOLVERR'] -eq '0') { '' }
+         elseif ($env['JACKETT_FLARESOLVERR_URL']) { $env['JACKETT_FLARESOLVERR_URL'] }
+         else { 'http://flaresolverr:8191' }
 Set-JackettFlareSolverr -Url $fsUrl
 # Jackett may have just restarted above -- wait until it serves again so callers
 # (e.g. the indexer-add step) don't hit it mid-restart.

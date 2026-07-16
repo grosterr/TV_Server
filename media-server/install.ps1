@@ -23,10 +23,58 @@ function Test-Cmd { param($Name) [bool](Get-Command $Name -ErrorAction SilentlyC
 
 function Set-EnvValue { param([string]$Path,[string]$Key,[string]$Value)
     $lines = if (Test-Path $Path) { Get-Content -LiteralPath $Path } else { @() }
-    if ($lines -match "(?m)^$Key=") {
+    if ($lines -match "(?m)^$([regex]::Escape($Key))=") {
         $lines = $lines -replace "(?m)^$([regex]::Escape($Key))=.*$", "$Key=$Value"
     } else { $lines += "$Key=$Value" }
     Set-Content -LiteralPath $Path -Value $lines -Encoding UTF8
+}
+
+function Get-EnvValue { param([string]$Path,[string]$Key)
+    if (-not (Test-Path $Path)) { return '' }
+    $line = Get-Content -LiteralPath $Path |
+        Where-Object { $_ -match "^$([regex]::Escape($Key))=" } | Select-Object -Last 1
+    if ($line) { ($line -split '=', 2)[1].Trim() } else { '' }
+}
+
+function New-WarpProfile {
+    <#
+      Generates a free Cloudflare WARP profile with wgcf (pinned version,
+      per-arch SHA256-verified download; arch is detected INSIDE the container,
+      so arm64/armv7 hosts like a Raspberry Pi get the right binary).
+      Returns @{ Status='ok'; Key=..; Addr=.. } | @{ Status='parsefail' } |
+      @{ Status='genfail' }.
+    #>
+    $gen = @'
+set -e
+apk add --no-cache curl >/dev/null 2>&1
+case "$(uname -m)" in
+  x86_64)        a=amd64; h=268d187e649870b603ad2e5c1b74a696251f6c2f6f075c726a174a0039b0b1e2;;
+  aarch64|arm64) a=arm64; h=e5ff08d3aae5374935211053b2d64d96daaa3f1aec8e9a1dab7418125585a011;;
+  armv7l|armhf)  a=armv7; h=bd40e55dae299acfa20446973ff4fc5a9a116ecaa41431aeff5f86034391f900;;
+  *) echo "unsupported arch: $(uname -m)" >&2; exit 1;;
+esac
+curl -sL -o /wgcf "https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_${a}"
+echo "$h  /wgcf" | sha256sum -c - >/dev/null
+chmod +x /wgcf
+cd /tmp
+/wgcf register --accept-tos >/dev/null 2>&1
+/wgcf generate >/dev/null 2>&1
+cat wgcf-profile.conf
+'@
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $warpProfile = docker run --rm alpine sh -c $gen 2>$null
+    $ErrorActionPreference = $oldEap
+    if (-not $warpProfile) { return @{ Status = 'genfail' } }
+    $keyLine  = $warpProfile | Select-String 'PrivateKey' | Select-Object -First 1
+    $addrLine = $warpProfile | Select-String 'Address'    | Select-Object -First 1
+    if (-not $keyLine) { return @{ Status = 'parsefail' } }
+    $key = $keyLine.Line.Split('=',2)[1].Trim()
+    if (-not $key) { return @{ Status = 'parsefail' } }
+    # Address holds "IPv4/32,IPv6/128" — keep only the IPv4 part.
+    $addr = if ($addrLine) { $addrLine.Line.Split('=',2)[1].Split(',')[0].Trim() }
+            else           { '172.16.0.2/32' }
+    return @{ Status = 'ok'; Key = $key; Addr = $addr }
 }
 
 # --- Single-select menu (arrows to move, Enter to pick) ----------------------
@@ -65,7 +113,7 @@ function Remove-Install { param([string[]]$DC)
     if ($confirm -ne 'delete') { Write-Host (L 'del_cancel') -ForegroundColor Cyan; return }
     Write-Host (L 'removing') -ForegroundColor Cyan
     foreach ($f in 'docker-compose.warp.yml','docker-compose.yml') {
-        & $DC[0] @($DC[1..($DC.Count-1)]) -f $f down -v --remove-orphans *> $null
+        & $DC[0] @($DC[1..($DC.Count-1)]) --profile flaresolverr -f $f down -v --remove-orphans *> $null
     }
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue jackett_config, torrserver_data, warp, .env, lampa_settings.txt, ..\lampa_settings.txt
     Write-Host ("  + " + (L 'removed')) -ForegroundColor Green
@@ -79,7 +127,8 @@ $MSG = @{
     nothing='Nothing to do.'; del_confirm="Removes containers, volumes AND data (jackett_config, torrserver_data, warp, .env). Type 'delete' to confirm"
     del_cancel='Cancelled - nothing removed.'; removing='Removing the media server...'
     removed='Removed containers, volumes and data. Re-run install to set up again.'
-    repairing='Repairing existing installation...'; cl_title='Torlamp — core (TorrServer + Jackett + FlareSolverr) is always installed'
+    repairing='Repairing existing installation...'; cl_title='Torlamp — core (TorrServer + Jackett) is always installed'
+    solverr_item='FlareSolverr (Cloudflare bypass for protected trackers; ~0.5 GB RAM)'
     warp_item='Hide IP for P2P (Cloudflare WARP)'; warp_gen='Generating a free Cloudflare WARP profile...'
     warp_ok='WARP profile generated.'; warp_parsefail='Could not parse WARP profile - set WARP_PRIVATE_KEY in .env manually.'
     warp_genfail='WARP profile generation failed - set WARP keys in .env later.'; starting='Starting containers ({0})...'
@@ -95,7 +144,8 @@ $MSG = @{
     nothing='Немає що робити.'; del_confirm="Видаляє контейнери, томи ТА дані (jackett_config, torrserver_data, warp, .env). Введіть 'delete' для підтвердження"
     del_cancel='Скасовано - нічого не видалено.'; removing='Видалення медіасервера...'
     removed='Видалено контейнери, томи й дані. Запустіть install знову для налаштування.'
-    repairing='Ремонт наявної інсталяції...'; cl_title='Torlamp — ядро (TorrServer + Jackett + FlareSolverr) ставиться завжди'
+    repairing='Ремонт наявної інсталяції...'; cl_title='Torlamp — ядро (TorrServer + Jackett) ставиться завжди'
+    solverr_item='FlareSolverr (обхід Cloudflare для захищених трекерів; ~0.5 ГБ RAM)'
     warp_item='Приховати IP для P2P (Cloudflare WARP)'; warp_gen='Генерація безкоштовного профілю Cloudflare WARP...'
     warp_ok='Профіль WARP згенеровано.'; warp_parsefail='Не вдалося розібрати профіль WARP - впишіть WARP_PRIVATE_KEY у .env вручну.'
     warp_genfail='Не вдалося згенерувати профіль WARP - впишіть ключі WARP у .env пізніше.'; starting='Запуск контейнерів ({0})...'
@@ -111,7 +161,8 @@ $MSG = @{
     nothing='Нечего делать.'; del_confirm="Удаляет контейнеры, тома И данные (jackett_config, torrserver_data, warp, .env). Введите 'delete' для подтверждения"
     del_cancel='Отменено - ничего не удалено.'; removing='Удаление медиасервера...'
     removed='Удалены контейнеры, тома и данные. Запустите install снова для установки.'
-    repairing='Ремонт существующей установки...'; cl_title='Torlamp — ядро (TorrServer + Jackett + FlareSolverr) ставится всегда'
+    repairing='Ремонт существующей установки...'; cl_title='Torlamp — ядро (TorrServer + Jackett) ставится всегда'
+    solverr_item='FlareSolverr (обход Cloudflare для защищённых трекеров; ~0.5 ГБ RAM)'
     warp_item='Скрыть IP для P2P (Cloudflare WARP)'; warp_gen='Генерация бесплатного профиля Cloudflare WARP...'
     warp_ok='Профиль WARP сгенерирован.'; warp_parsefail='Не удалось разобрать профиль WARP - впишите WARP_PRIVATE_KEY в .env вручную.'
     warp_genfail='Не удалось сгенерировать профиль WARP - впишите ключи WARP в .env позже.'; starting='Запуск контейнеров ({0})...'
@@ -159,31 +210,25 @@ if (Test-Installed) {
 }
 
 $wantWarp = $false
+$wantSolverr = $true
 if ($mode -eq 'install') {
     Clear-Host
     Write-Host (L 'cl_title') -ForegroundColor Cyan
+    $a = Read-Host ((L 'solverr_item') + "? [Y/n]")
+    $wantSolverr = -not ($a -match '^(n|н)')
     $a = Read-Host ((L 'warp_item') + "? [y/N]")
     if ($a -match '^(y|т|д)') { $wantWarp = $true }
     if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 
     if ($wantWarp) {
         Write-Host "`n$(L 'warp_gen')" -ForegroundColor Cyan
-        $gen = 'apk add --no-cache curl >/dev/null 2>&1 && curl -sL -o /wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x /wgcf && cd /tmp && /wgcf register --accept-tos >/dev/null 2>&1 && /wgcf generate >/dev/null 2>&1 && cat wgcf-profile.conf'
-        try {
-            $oldEap = $ErrorActionPreference
-            $ErrorActionPreference = 'Continue'
-            $warpProfile = docker run --rm alpine sh -c $gen 2>$null
-            $ErrorActionPreference = $oldEap
-            $key  = ($warpProfile | Select-String 'PrivateKey').Line.Split('=',2)[1].Trim()
-            $addr = ($warpProfile | Select-String 'Address').Line.Split('=',2)[1].Trim()
-            if ($key) {
-                Set-EnvValue .env 'WARP_PRIVATE_KEY' $key
-                Set-EnvValue .env 'WARP_ADDRESS_V4' $addr
-                Write-Host "  + $(L 'warp_ok')" -ForegroundColor Green
-            } else { Write-Warning (L 'warp_parsefail') }
-        } catch {
-            $ErrorActionPreference = 'Stop'
-            Write-Warning (L 'warp_genfail')
+        $wp = New-WarpProfile
+        switch ($wp.Status) {
+            'ok'        { Set-EnvValue .env 'WARP_PRIVATE_KEY' $wp.Key
+                          Set-EnvValue .env 'WARP_ADDRESS_V4' $wp.Addr
+                          Write-Host "  + $(L 'warp_ok')" -ForegroundColor Green }
+            'parsefail' { Write-Warning (L 'warp_parsefail') }
+            default     { Write-Warning (L 'warp_genfail') }
         }
     }
 } else {
@@ -192,28 +237,24 @@ if ($mode -eq 'install') {
     $warpInEnv = [bool](Get-Content .env | Where-Object { $_ -match '^WARP_PRIVATE_KEY=.+' })
     $warpRunning = (docker ps -a --format '{{.Names}}' 2>$null) -contains 'warp'
     $wantWarp = $warpInEnv -or $warpRunning
+    # Keep the recorded FlareSolverr choice; old installs (no key in .env)
+    # always had it, so default to on.
+    $wantSolverr = (Get-EnvValue .env 'ENABLE_FLARESOLVERR') -ne '0'
     # If we want WARP but the key is missing — generate it now (same as fresh install)
     if ($wantWarp -and -not $warpInEnv) {
         Write-Host "`n$(L 'warp_gen')" -ForegroundColor Cyan
-        $gen = 'apk add --no-cache curl >/dev/null 2>&1 && curl -sL -o /wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x /wgcf && cd /tmp && /wgcf register --accept-tos >/dev/null 2>&1 && /wgcf generate >/dev/null 2>&1 && cat wgcf-profile.conf'
-        try {
-            $oldEap = $ErrorActionPreference
-            $ErrorActionPreference = 'Continue'
-            $warpProfile = docker run --rm alpine sh -c $gen 2>$null
-            $ErrorActionPreference = $oldEap
-            $key  = ($warpProfile | Select-String 'PrivateKey').Line.Split('=',2)[1].Trim()
-            $addr = ($warpProfile | Select-String 'Address').Line.Split('=',2)[1].Trim()
-            if ($key) {
-                Set-EnvValue .env 'WARP_PRIVATE_KEY' $key
-                Set-EnvValue .env 'WARP_ADDRESS_V4' $addr
-                Write-Host "  + $(L 'warp_ok')" -ForegroundColor Green
-            } else { Write-Warning (L 'warp_parsefail') }
-        } catch {
-            $ErrorActionPreference = 'Stop'
-            Write-Warning (L 'warp_genfail')
+        $wp = New-WarpProfile
+        switch ($wp.Status) {
+            'ok'        { Set-EnvValue .env 'WARP_PRIVATE_KEY' $wp.Key
+                          Set-EnvValue .env 'WARP_ADDRESS_V4' $wp.Addr
+                          Write-Host "  + $(L 'warp_ok')" -ForegroundColor Green }
+            'parsefail' { Write-Warning (L 'warp_parsefail') }
+            default     { Write-Warning (L 'warp_genfail') }
         }
     }
 }
+# Persist the FlareSolverr choice so repair re-runs keep it.
+Set-EnvValue .env 'ENABLE_FLARESOLVERR' $(if ($wantSolverr) { '1' } else { '0' })
 
 # --- Banner -----------------------------------------------------------------
 Write-Host "`n  T O R L A M P" -ForegroundColor Cyan
@@ -221,8 +262,14 @@ Write-Host "  $(L 'tagline')" -ForegroundColor DarkGray
 
 # --- Bring up the stack -----------------------------------------------------
 $composeFile = if ($wantWarp) { 'docker-compose.warp.yml' } else { 'docker-compose.yml' }
+$profileArgs = @()
+if ($wantSolverr) { $profileArgs = @('--profile','flaresolverr') }
+else {
+    # Choice switched to off — drop a container left from an earlier install.
+    docker rm -f flaresolverr *> $null
+}
 Write-Host ("`n" + ((L 'starting') -f $composeFile)) -ForegroundColor Cyan
-& $DC[0] @($DC[1..($DC.Count-1)]) -f $composeFile up -d
+& $DC[0] @($DC[1..($DC.Count-1)]) @profileArgs -f $composeFile up -d
 
 # --- Configure (auto API key, CORS, FlareSolverr, TorrServer tuning) --------
 Write-Host "`n$(L 'configuring')" -ForegroundColor Cyan

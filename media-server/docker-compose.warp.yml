@@ -14,7 +14,9 @@
 services:
   # Cloudflare WARP tunnel (WireGuard) — network gateway for TorrServer.
   warp:
-    image: qmcgaw/gluetun:latest
+    # Pinned to the v3 major: ALL torrent traffic rides this container, and
+    # gluetun has shipped breaking config changes across majors before.
+    image: qmcgaw/gluetun:v3
     container_name: warp
     cap_add:
       - NET_ADMIN
@@ -34,8 +36,9 @@ services:
       - VPN_ENDPOINT_PORT=2408
       - WIREGUARD_MTU=1280
       # Let the LAN (TV) reach TorrServer and let TorrServer answer LAN peers.
+      # All three RFC1918 ranges — home LANs also live on 10.x and 172.16-31.x.
       - FIREWALL_INPUT_PORTS=8090,42116
-      - FIREWALL_OUTBOUND_SUBNETS=192.168.0.0/16
+      - FIREWALL_OUTBOUND_SUBNETS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
       - TZ=Europe/Kyiv
     restart: unless-stopped
 
@@ -48,7 +51,10 @@ services:
     environment:
       - TZ=Europe/Kyiv
     depends_on:
-      - warp
+      # gluetun ships a built-in healthcheck; wait for the tunnel to be up so
+      # TorrServer doesn't start with no network for its first seconds.
+      warp:
+        condition: service_healthy
     restart: unless-stopped
 
   jackett:
@@ -62,16 +68,17 @@ services:
       - PUID=${PUID:-1000}   # installer sets these to the current user so it
       - PGID=${PGID:-1000}   # can edit ServerConfig.json (CORS, API key) after
       - TZ=Europe/Kyiv
-    depends_on:
-      - flaresolverr
     restart: unless-stopped
 
+  # Optional (compose profile) — see the note in docker-compose.yml.
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
+    profiles: ["flaresolverr"]
     ports:
       - "8191:8191"
     environment:
       - LOG_LEVEL=info
       - TZ=Europe/Kyiv
+    mem_limit: 1g
     restart: unless-stopped
