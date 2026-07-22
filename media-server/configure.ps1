@@ -150,11 +150,13 @@ if (-not (Wait-ForService -Url $JackettUrl -Name 'Jackett' -TimeoutSec $TimeoutS
 Write-Host "Tuning TorrServer:" -ForegroundColor Cyan
 # Explicit TORRSERVER_CACHE_SIZE in .env wins; empty = auto — a quarter of
 # host RAM clamped to 256 MiB..2 GiB (mirrors setup_helpers.pick_cache_size,
-# so a Raspberry Pi is not asked to hold a 2 GiB cache).
+# so a Raspberry Pi is not asked to hold a 2 GiB cache). The 2 GiB cap is
+# 2147483647 (int32 max), not 2**31, which would overflow TorrServer's
+# signed-int32 cache field on 32-bit builds and wrap negative.
 $cache = if ($env['TORRSERVER_CACHE_SIZE']) { [long]$env['TORRSERVER_CACHE_SIZE'] } else {
     $totalRam = try { (Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).TotalPhysicalMemory } catch { 0 }
-    if ($totalRam -gt 0) { [math]::Max(268435456, [math]::Min(2147483648, [long]($totalRam / 4))) }
-    else { 2147483648 }
+    if ($totalRam -gt 0) { [math]::Max(268435456, [math]::Min(2147483647, [long]($totalRam / 4))) }
+    else { 2147483647 }
 }
 $conn  = if ($env['TORRSERVER_CONN_LIMIT'])  { [int]$env['TORRSERVER_CONN_LIMIT'] }   else { 1000 }
 $port  = if ($env['TORRSERVER_PEER_PORT'])   { [int]$env['TORRSERVER_PEER_PORT'] }    else { 42116 }

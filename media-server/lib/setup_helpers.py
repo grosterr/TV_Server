@@ -19,7 +19,9 @@ ENV_KEYS = ("JACKETT_APIKEY", "WARP_PRIVATE_KEY", "WARP_ADDRESS_V4",
             "ENABLE_FLARESOLVERR")
 
 TORRSERVER_DEFAULTS = dict(
-    CacheSize=2147483648, ConnectionsLimit=1000,
+    # 2**31-1 (int32 max): a full 2 GiB is 2**31, which overflows TorrServer's
+    # signed-int32 cache field on 32-bit (armv7) builds and wraps negative.
+    CacheSize=2147483647, ConnectionsLimit=1000,
     PeersListenPort=42116, TorrentDisconnectTimeout=3600,
     PreloadCache=10,  # % of cache preloaded before playback (quick start)
 )
@@ -49,7 +51,10 @@ def is_newer(remote_tag: str, local_version: str) -> bool:
 
 # RAM-cache bounds for pick_cache_size (bytes).
 CACHE_MIN = 256 * 1024 * 1024   # even a 1 GB Raspberry Pi can spare this
-CACHE_MAX = 2 * 1024 ** 3       # more gives no benefit for streaming
+# A full 2 GiB (2**31) overflows TorrServer's signed-int32 cache field on
+# 32-bit (armv7) builds and wraps negative, so cap one byte below at int32 max.
+# More than ~2 GiB gives no benefit for streaming anyway.
+CACHE_MAX = 2 ** 31 - 1         # 2147483647 — largest int32-safe cache
 
 
 def pick_cache_size(total_ram_bytes: int | None) -> int:

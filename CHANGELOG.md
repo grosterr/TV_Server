@@ -12,6 +12,12 @@ Bug-fix release: WARP profile generation works again.
   back to `warp_genfail`. The newer binary parses those fields as 64-bit, so
   profile generation succeeds again. Per-arch SHA256 checksums (amd64 / arm64 /
   armv7) and the manual fallback command in the READMEs were updated to match.
+- **Fixed an int32 overflow in the TorrServer cache size** — the default and the
+  auto-tuning 2 GiB cap were `2147483648` (2**31), one byte past the signed
+  32-bit maximum. On 32-bit (armv7) TorrServer builds that value wraps negative,
+  breaking the RAM cache. The default and the clamp (in `setup_helpers.py` and
+  `configure.ps1`) are now `2147483647` (int32 max); `.env.example` documents the
+  safe ceiling for explicit `TORRSERVER_CACHE_SIZE` values.
 
 ## v1.1
 

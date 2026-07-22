@@ -102,7 +102,7 @@ class MergeTorrServer(unittest.TestCase):
     def test_applies_defaults_and_preserves_other_fields(self):
         current = {"CacheSize": 1, "SomeOtherFlag": True, "ReaderReadAHead": 95}
         merged = sh.merge_torrserver_settings(current)
-        self.assertEqual(merged["CacheSize"], 2147483648)
+        self.assertEqual(merged["CacheSize"], 2147483647)  # int32-safe 2 GiB
         self.assertEqual(merged["ConnectionsLimit"], 1000)
         self.assertEqual(merged["PeersListenPort"], 42116)
         self.assertEqual(merged["PreloadCache"], 10)     # default 10% preload
