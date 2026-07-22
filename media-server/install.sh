@@ -216,9 +216,12 @@ cd /tmp
 /wgcf generate >/dev/null 2>&1
 cat wgcf-profile.conf'
   profile=$(docker run --rm alpine sh -c "$script" 2>/dev/null) || return 1
-  WARP_KEY=$(printf '%s\n' "$profile" | awk -F' *= *' '/PrivateKey/{print $2; exit}')
+  # Strip only the "KEY = " prefix (first '=') and keep the rest verbatim.
+  # A field-splitting FS of ' *= *' would eat the base64 padding '=' that
+  # every 32-byte WireGuard key ends with, yielding a 43-char (invalid) key.
+  WARP_KEY=$(printf '%s\n' "$profile" | awk '/^PrivateKey/{sub(/^[^=]*=[ \t]*/, ""); print; exit}')
   # Address holds "IPv4/32,IPv6/128" — keep only the IPv4 part.
-  WARP_ADDR=$(printf '%s\n' "$profile" | awk -F' *= *' '/Address/{split($2,a,","); print a[1]; exit}')
+  WARP_ADDR=$(printf '%s\n' "$profile" | awk '/^Address/{sub(/^[^=]*=[ \t]*/, ""); split($0,a,","); print a[1]; exit}')
   [ -n "$WARP_KEY" ] || return 2
 }
 

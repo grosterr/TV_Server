@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+- **WARP profile generation produced an invalid key** — the private key was
+  parsed with `awk -F' *= *'`, whose field separator also matched the trailing
+  base64 padding `=` that every 32-byte WireGuard key ends with, dropping it and
+  yielding a 43-character (invalid) key. gluetun then refused to bring the tunnel
+  up. The key and address are now parsed by stripping only the `KEY = ` prefix,
+  preserving the value verbatim.
+- **TorrServer cache size overflowed int32** — the default and adaptive maximum
+  were a full 2 GiB (`2147483648` = 2³¹), one byte over `INT32_MAX`; TorrServer
+  stores `CacheSize` in a signed 32-bit int, so the value wrapped to a negative
+  cache size. The cap is now `2147483647` (INT32_MAX).
+
 ## v1.1
 
 Security & resource hardening plus a built-in update system — same stack,

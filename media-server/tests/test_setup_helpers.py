@@ -102,7 +102,9 @@ class MergeTorrServer(unittest.TestCase):
     def test_applies_defaults_and_preserves_other_fields(self):
         current = {"CacheSize": 1, "SomeOtherFlag": True, "ReaderReadAHead": 95}
         merged = sh.merge_torrserver_settings(current)
-        self.assertEqual(merged["CacheSize"], 2147483648)
+        # INT32_MAX, not 2**31 — a full 2 GiB overflows TorrServer's int32.
+        self.assertEqual(merged["CacheSize"], 2147483647)
+        self.assertEqual(merged["CacheSize"], sh.CACHE_MAX)
         self.assertEqual(merged["ConnectionsLimit"], 1000)
         self.assertEqual(merged["PeersListenPort"], 42116)
         self.assertEqual(merged["PreloadCache"], 10)     # default 10% preload
@@ -131,8 +133,14 @@ class PickCacheSize(unittest.TestCase):
         self.assertEqual(sh.pick_cache_size(512 * 1024 * 1024), sh.CACHE_MIN)
 
     def test_clamped_to_max_on_big_hosts(self):
-        # 32 GiB host -> still 2 GiB
+        # 32 GiB host -> still ~2 GiB
         self.assertEqual(sh.pick_cache_size(32 * self.GIB), sh.CACHE_MAX)
+
+    def test_max_fits_in_signed_int32(self):
+        # A full 2 GiB (2**31) overflows TorrServer's signed 32-bit CacheSize
+        # to a negative value; the cap must stay <= INT32_MAX.
+        self.assertLessEqual(sh.CACHE_MAX, 2 ** 31 - 1)
+        self.assertGreater(sh.pick_cache_size(64 * self.GIB), 0)
 
 
 class Versions(unittest.TestCase):

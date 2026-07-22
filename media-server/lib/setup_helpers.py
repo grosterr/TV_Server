@@ -18,8 +18,15 @@ from typing import Dict, Tuple
 ENV_KEYS = ("JACKETT_APIKEY", "WARP_PRIVATE_KEY", "WARP_ADDRESS_V4",
             "ENABLE_FLARESOLVERR")
 
+# RAM-cache bounds for pick_cache_size (bytes).
+# CACHE_MAX is INT32_MAX (2**31 - 1), NOT a full 2 GiB (2**31): TorrServer
+# stores CacheSize in a signed 32-bit int, so 2147483648 overflows to a
+# negative size and the cache breaks. 2147483647 is the largest safe value.
+CACHE_MIN = 256 * 1024 * 1024   # even a 1 GB Raspberry Pi can spare this
+CACHE_MAX = 2 * 1024 ** 3 - 1   # 2 GiB - 1 B = INT32_MAX; more gives no benefit
+
 TORRSERVER_DEFAULTS = dict(
-    CacheSize=2147483648, ConnectionsLimit=1000,
+    CacheSize=CACHE_MAX, ConnectionsLimit=1000,
     PeersListenPort=42116, TorrentDisconnectTimeout=3600,
     PreloadCache=10,  # % of cache preloaded before playback (quick start)
 )
@@ -45,11 +52,6 @@ def parse_version(tag: str) -> Tuple[int, int, int]:
 def is_newer(remote_tag: str, local_version: str) -> bool:
     """True if the release tag is strictly newer than the installed version."""
     return parse_version(remote_tag) > parse_version(local_version)
-
-
-# RAM-cache bounds for pick_cache_size (bytes).
-CACHE_MIN = 256 * 1024 * 1024   # even a 1 GB Raspberry Pi can spare this
-CACHE_MAX = 2 * 1024 ** 3       # more gives no benefit for streaming
 
 
 def pick_cache_size(total_ram_bytes: int | None) -> int:
