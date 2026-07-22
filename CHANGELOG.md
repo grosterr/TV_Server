@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.1
+
+Bug-fix release: WARP profile generation works again.
+
+### Changes
+- **Fixed WARP generation failing with an int32 overflow** — the pinned `wgcf`
+  was bumped from **v2.2.22** to **v2.2.31**. Cloudflare's registration API now
+  returns account quota values that no longer fit in the 32-bit integer the old
+  `wgcf` parsed them into, so `wgcf register` aborted and IP hiding silently fell
+  back to `warp_genfail`. The newer binary parses those fields as 64-bit, so
+  profile generation succeeds again. Per-arch SHA256 checksums (amd64 / arm64 /
+  armv7) and the manual fallback command in the READMEs were updated to match.
+
 ## v1.1
 
 Security & resource hardening plus a built-in update system — same stack,

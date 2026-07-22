@@ -96,12 +96,12 @@ function New-WarpProfile {
 set -e
 apk add --no-cache curl >/dev/null 2>&1
 case "$(uname -m)" in
-  x86_64)        a=amd64; h=268d187e649870b603ad2e5c1b74a696251f6c2f6f075c726a174a0039b0b1e2;;
-  aarch64|arm64) a=arm64; h=e5ff08d3aae5374935211053b2d64d96daaa3f1aec8e9a1dab7418125585a011;;
-  armv7l|armhf)  a=armv7; h=bd40e55dae299acfa20446973ff4fc5a9a116ecaa41431aeff5f86034391f900;;
+  x86_64)        a=amd64; h=69147e1a517c66129edd8ac8cb60484d6c9515178d7b4a2f95e3c925f225572a;;
+  aarch64|arm64) a=arm64; h=b9bdbdeaa3f9f4ba741ba55b8bd94c24f7166c27668eb7e8192ccf9746961182;;
+  armv7l|armhf)  a=armv7; h=207a932daba270dce9a604cda69554e08a25626a1f0b2ab4c00fc841a70b5667;;
   *) echo "unsupported arch: $(uname -m)" >&2; exit 1;;
 esac
-curl -sL -o /wgcf "https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_${a}"
+curl -sL -o /wgcf "https://github.com/ViRb3/wgcf/releases/download/v2.2.31/wgcf_2.2.31_linux_${a}"
 echo "$h  /wgcf" | sha256sum -c - >/dev/null
 chmod +x /wgcf
 cd /tmp

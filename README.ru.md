@@ -193,7 +193,7 @@ Downloader на Samsung не работает (Tizen — не Android), поэт
 1. Сгенерируйте WARP-профиль (создаёт бесплатный аккаунт):
    ```powershell
    docker run --rm -v "${PWD}\warp:/data" -w //data alpine sh -c `
-     "apk add --no-cache curl >/dev/null && curl -sL -o wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate && cat wgcf-profile.conf"
+     "apk add --no-cache curl >/dev/null && curl -sL -o wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.31/wgcf_2.2.31_linux_amd64 && chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate && cat wgcf-profile.conf"
    ```
    > На ARM-устройствах (Raspberry Pi, часть NAS) замените `linux_amd64` на `linux_arm64` (или `linux_armv7`). Инсталлятор `install.sh` / `install.bat` делает это автоматически и сверяет SHA256 скачанного файла.
 2. Из вывода возьмите `PrivateKey` и первый `Address` и впишите в `.env`:

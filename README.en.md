@@ -193,7 +193,7 @@ If you're behind a "gray" IP (CGNAT) or just want peers to see an IP other than 
 1. Generate a WARP profile (creates a free account):
    ```powershell
    docker run --rm -v "${PWD}\warp:/data" -w //data alpine sh -c `
-     "apk add --no-cache curl >/dev/null && curl -sL -o wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64 && chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate && cat wgcf-profile.conf"
+     "apk add --no-cache curl >/dev/null && curl -sL -o wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.31/wgcf_2.2.31_linux_amd64 && chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate && cat wgcf-profile.conf"
    ```
    > On ARM devices (Raspberry Pi, some NAS) replace `linux_amd64` with `linux_arm64` (or `linux_armv7`). The `install.sh` / `install.bat` installer does this automatically and verifies the SHA256 of the downloaded file.
 2. From the output, take the `PrivateKey` and the first `Address` and write them into `.env`:
